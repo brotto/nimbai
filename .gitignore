@@ -1,0 +1,39 @@
+# dependencies / build
+node_modules/
+dist/
+build/
+.turbo/
+.wrangler/
+coverage/
+*.tsbuildinfo
+
+# secrets and local config — NEVER commit
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+*.p12
+*.secret.json
+.mcp.local.json
+wrangler.local.toml
+
+# python (services/ingest)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

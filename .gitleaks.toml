@@ -1,0 +1,11 @@
+# Gitleaks: usa as regras padrão e permite apenas o arquivo de exemplo sem valores.
+title = "nimbai"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Arquivo que só contém NOMES de variáveis, sem valores"
+paths = [
+  '''\.env\.example$''',
+]
