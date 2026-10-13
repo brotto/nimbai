@@ -10,6 +10,10 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    # Um PR só para todas as actions, em vez de um por action
+    groups:
+      github-actions:
+        patterns: ["*"]
   - package-ecosystem: pip
     directory: /services/ingest
     schedule: { interval: weekly }
