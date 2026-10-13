@@ -30,7 +30,7 @@ jobs:
       # Sem 'version:' — a versão vem de packageManager no package.json
       # (declarar nos dois lugares faz a action abortar com ERR_PNPM_BAD_PM_VERSION)
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       # Antes da Fase 1 não há lockfile nem pacotes; o job passa vazio e endurece sozinho depois.
