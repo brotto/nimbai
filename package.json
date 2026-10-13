@@ -2,17 +2,27 @@
   "name": "nimbai",
   "private": true,
   "version": "0.0.0",
-  "description": "NimbAI — weather intelligence for AI agents (MCP) and people (web).",
+  "description": "NimbAI \u2014 weather intelligence for AI agents (MCP) and people (web).",
   "license": "MIT",
   "packageManager": "pnpm@10.0.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
+    "lint": "prettier --check .",
+    "format": "prettier --write .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "dev:mcp": "pnpm --filter @nimbai/mcp dev",
     "dev:api": "pnpm --filter @nimbai/api dev",
     "dev:web": "pnpm --filter @nimbai/web dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prettier": "^3.4.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
   }
 }

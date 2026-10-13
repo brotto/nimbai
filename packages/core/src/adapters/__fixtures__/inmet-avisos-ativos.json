@@ -1,0 +1,163 @@
+{
+  "hoje": [
+    {
+      "id": 56014,
+      "id_aviso": 28459,
+      "id_sequencia": 1,
+      "id_condicao_severa": 38,
+      "id_icone": 152,
+      "id_usuario": 105,
+      "codigo": "urn:oid:2.49.0.0.76.0.2026.28459.1",
+      "referencia": null,
+      "data_inicio": "2026-10-13T00:00:00.000Z",
+      "hora_inicio": "00:00",
+      "data_fim": "2026-10-13T00:00:00.000Z",
+      "hora_fim": "23:59",
+      "poligono": "{\"type\":\"Polygon\",\"coordinates\":[[[-64.511719,1.493971],[-60.732422,-4.302591],[-58.095703,-9.362353],[-55.195313,-14.051331],[-54.316406,-18.229351],[-52.954102,-19.642588],[-50.756836,-20.715015],[-47.944336,-21.412162],[-45.395508,-21.453069],[-44.708862,-21.682953],[-44.121094,-22.024546],[-43.670654,-23.145411],[-44.500122,-23.438049],[-45.263672,-24.011344],[-46.087646,-24.146754],[-47.504883,-25.005973],[-48.120117,-25.61181],[-48.515625,-26.495157],[-48.202515,-27.493654],[-48.80127,-28.67613],[-49.345093,-29.094577],[-49.790039,-29.649869],[-54.393311,-27.464414],[-54.014282,-27.220441],[-53.800049,-27.142257],[-53.690186,-26.868181],[-53.728638,-26.52465],[-53.624268,-26.249083],[-53.805542,-25.948166],[-53.882446,-25.596948],[-54.206543,-25.547398],[-54.393311,-25.65143],[-54.63501,-25.61181],[-54.382324,-24.836596],[-54.239502,-24.026397],[-54.602051,-23.855698],[-55.085449,-23.976215],[-55.415039,-23.976215],[-55.634766,-22.674847],[-55.755615,-22.400872],[-56.239014,-22.248429],[-56.403809,-22.09582],[-56.843262,-22.289096],[-57.963867,-22.105999],[-57.875977,-20.869078],[-58.183594,-20.133313],[-57.832031,-19.988836],[-58.112183,-19.761534],[-57.733154,-18.963442],[-57.55188,-18.156291],[-57.749634,-17.575957],[-58.156128,-17.397821],[-58.425293,-16.993755],[-58.227539,-16.341226],[-60.117188,-16.193575],[-60.270996,-15.538376],[-60.512695,-15.050906],[-60.205078,-15.072124],[-60.402832,-14.349548],[-60.380859,-13.83808],[-62.929688,-12.940322],[-63.676758,-12.490214],[-64.445801,-12.490214],[-65.192871,-11.609193],[-65.324707,-9.709057],[-66.796875,-10.033767],[-67.983398,-10.768556],[-68.642578,-11.178402],[-69.169922,-10.833306],[-70.532227,-10.984335],[-70.554199,-9.362353],[-71.257324,-9.968851],[-71.982422,-9.925566],[-72.443848,-9.514079],[-73.103027,-9.384032],[-72.927246,-9.058702],[-73.828125,-7.710992],[-73.608398,-6.577303],[-72.685547,-5.047171],[-71.850586,-4.65308],[-71.015625,-4.390229],[-69.785156,-4.171115],[-69.65332,-2.196727],[-69.345703,-1.032659],[-69.98291,-0.153808],[-70.092773,0.505365],[-69.104004,0.57128],[-69.125977,1.054628],[-69.873047,1.318243],[-69.873047,1.625758],[-68.203125,1.713612],[-68.15918,1.955187],[-67.280273,2.152814],[-67.060547,1.274309],[-66.225586,0.747049],[-65.170898,0.98872],[-64.511719,1.493971]]]}",
+      "municipios": "Abatiá - PR (4100103),Abdon Batista - SC (4200051),Abelardo Luz - SC (4200101),Acorizal - MT (5100102),Acrelândia - AC (1200013),Adamantina - SP (3500105),Adolfo - SP (3500204),Adrianópolis - PR (4100202),Agrolândia - SC (4200200),Agronômica - SC (4200309),Água Clara - MS (5000203),Água Doce - SC (4200408)",
+      "microrregioes": "Cornélio Procópio,Curitibanos,Xanxerê,Rosário Oeste,Rio Branco,Adamantina,São José do Rio Preto,Cerro Azul,Ituporanga,Rio do Sul,Três Lagoas,Joaçaba",
+      "mesorregioes": "Norte Pioneiro Paranaense,Serrana,Oeste Catarinense,Centro-Sul Mato-grossense,Vale do Acre,Presidente Prudente,São José do Rio Preto,Metropolitana de Curitiba,Vale do Itajaí,Leste de Mato Grosso do Sul,Campinas,Noroeste Rio-grandense,Bauru,Piracicaba,Grande Florianópolis,Sul/Sudoeste de Minas,Itapetininga,Centro Norte de Mato Grosso do Sul,Leste Rondoniense,Centro Ocidental Paranaense,Araçatuba,Noroeste Paranaense,Macro Metropolitana Paulista,Centro Amazonense,Marília,Norte Central Paranaense,Sudoeste de Mato Grosso do Sul,Sudoeste Amazonense,Araraquara,Sudoeste Paranaense,Oeste Paranaense,Pantanais Sul Mato-grossense,Nordeste Rio-grandense,Sul Fluminense,Sudeste Paranaense,Vale do Paraíba Paulista,Norte Mato-grossense,Sul Amazonense,Centro Oriental Paranaense,Sudoeste Mato-grossense,Norte Catarinense,Sul Catarinense,Metropolitana de Porto Alegre,Metropolitana de São Paulo,Assis,Norte Amazonense,Litoral Sul Paulista,Centro-Sul Paranaense,Madeira-Guaporé,Ribeirão Preto,Sudeste Mato-grossense,Vale do Juruá,Metropolitana do Rio de Janeiro,Campo das Vertentes,Zona da Mata",
+      "estados": "Paraná,Santa Catarina,Mato Grosso,Acre,São Paulo,Mato Grosso do Sul,Rio Grande do Sul,Minas Gerais,Rondônia,Amazonas,Rio de Janeiro",
+      "regioes": "Sul,Centro-Oeste,Norte,Sudeste",
+      "geocodes": "4100103,4200051,4200101,5100102,1200013,3500105,3500204,4100202,4200200,4200309,5000203,4200408",
+      "alterado": false,
+      "encerrado": false,
+      "created_at": "2026-10-09T00:00:00.000Z",
+      "updated_at": "2026-10-09T00:00:00.000Z",
+      "inicio": "2026-10-13 00:00",
+      "fim": "2026-10-13 23:59",
+      "descricao": "Tempestade",
+      "aviso_cor": "#FFFE00",
+      "id_severidade": 6,
+      "severidade": "Perigo Potencial",
+      "riscos": [
+        "Chuva entre 20 e 30 mm/h ou até 50 mm/dia, ventos intensos (40-60 km/h), e queda de granizo. Baixo risco de corte de energia elétrica, estragos em plantações, queda de galhos de árvores e de alagamentos."
+      ],
+      "instrucoes": [
+        "Em caso de rajadas de vento: (não se abrigue debaixo de árvores, pois há leve risco de queda e descargas elétricas e não estacione veículos próximos a torres de transmissão e placas de propaganda). ",
+        "Evite usar aparelhos eletrônicos ligados à tomada. ",
+        "Obtenha mais informações junto à Defesa Civil (telefone 199) e ao Corpo de Bombeiros (telefone 193)."
+      ]
+    },
+    {
+      "id": 56051,
+      "id_aviso": 28481,
+      "id_sequencia": 1,
+      "id_condicao_severa": 23,
+      "id_icone": 140,
+      "id_usuario": 19,
+      "codigo": "urn:oid:2.49.0.0.76.0.2026.28481.1",
+      "referencia": null,
+      "data_inicio": "2026-10-13T00:00:00.000Z",
+      "hora_inicio": "09:00",
+      "data_fim": "2026-10-14T00:00:00.000Z",
+      "hora_fim": "23:59",
+      "poligono": "{\"type\":\"Polygon\",\"coordinates\":[[[-38.803711,-3.951941],[-40.209961,-3.557283],[-41.879883,-3.557283],[-42.978516,-3.601142],[-44.34082,-4.477856],[-46.054688,-6.315299],[-46.625977,-7.754537],[-47.15332,-10.185187],[-47.548828,-12.125264],[-47.592773,-14.051331],[-47.680664,-15.114553],[-47.460937,-15.834536],[-47.109375,-16.509833],[-45.219727,-17.14079],[-41.396484,-17.476432],[-40.605469,-16.846605],[-40.605469,-16.045813],[-40.913086,-14.944785],[-41.396484,-13.325485],[-40.693359,-11.996338],[-39.814453,-11.049038],[-38.759766,-10.401378],[-37.573242,-9.31899],[-37.001953,-7.623887],[-37.177734,-6.227934],[-37.924805,-5.178482],[-38.803711,-3.951941]]]}",
+      "municipios": "Abaiara - CE (2300101),Abaíra - BA (2900108),Abaré - BA (2900207),Acarape - CE (2300150),Acauã - PI (2200053),Acopiara - CE (2300309),Afogados da Ingazeira - PE (2600104),Afonso Cunha - MA (2100105),Afrânio - PE (2600203),Agricolândia - PI (2200103),Água Branca - AL (2700102),Água Branca - PI (2200202)",
+      "microrregioes": "Brejo Santo,Seabra,Paulo Afonso,Baturité,Alto Médio Canindé,Sertão de Senador Pompeu,Pajeú,Coelho Neto,Petrolina,Médio Parnaíba Piauiense,Serrana do Sertão Alagoano,Serra do Teixeira",
+      "mesorregioes": "Sul Cearense,Centro Sul Baiano,Vale São-Franciscano da Bahia,Norte Cearense,Sudeste Piauiense,Sertões Cearenses,Sertão Pernambucano,Leste Maranhense,São Francisco Pernambucano,Centro-Norte Piauiense,Sertão Alagoano,Sertão Paraibano,Leste Goiano,Oeste Potiguar,Vale do Mucuri,Norte de Minas,Noroeste Cearense,Oriental do Tocantins,Jequitinhonha,Norte Goiano,Sul Maranhense,Jaguaribe,Sudoeste Piauiense,Centro Norte Baiano,Borborema,Extremo Oeste Baiano,Centro-Sul Cearense,Noroeste de Minas,Centro Maranhense,Norte Piauiense,Distrito Federal,Central Potiguar,Sertão Sergipano,Nordeste Baiano,Metropolitana de Fortaleza,Agreste Pernambucano",
+      "estados": "Ceará,Bahia,Piauí,Pernambuco,Maranhão,Alagoas,Paraíba,Goiás,Rio Grande do Norte,Minas Gerais,Tocantins,Distrito Federal,Sergipe",
+      "regioes": "Nordeste,Centro-Oeste,Sudeste,Norte",
+      "geocodes": "2300101,2900108,2900207,2300150,2200053,2300309,2600104,2100105,2600203,2200103,2700102,2200202",
+      "alterado": false,
+      "encerrado": false,
+      "created_at": "2026-10-12T00:00:00.000Z",
+      "updated_at": "2026-10-12T00:00:00.000Z",
+      "inicio": "2026-10-13 09:00",
+      "fim": "2026-10-14 23:59",
+      "descricao": "Baixa Umidade",
+      "aviso_cor": "#FFFE00",
+      "id_severidade": 6,
+      "severidade": "Perigo Potencial",
+      "riscos": [
+        "Umidade relativa do ar variando entre 30% e 20%. Baixo risco de incêndios florestais e à saúde."
+      ],
+      "instrucoes": [
+        "Beba bastante líquido.  ",
+        "Evite desgaste físico nas horas mais secas. ",
+        "Evite exposição ao sol nas horas mais quentes do dia. ",
+        "Obtenha mais informações junto à Defesa Civil (telefone 199) e ao Corpo de Bombeiros (telefone 193)."
+      ]
+    }
+  ],
+  "futuro": [
+    {
+      "id": 56038,
+      "id_aviso": 28473,
+      "id_sequencia": 1,
+      "id_condicao_severa": 24,
+      "id_icone": 115,
+      "id_usuario": 108,
+      "codigo": "urn:oid:2.49.0.0.76.0.2026.28473.1",
+      "referencia": null,
+      "data_inicio": "2026-10-14T00:00:00.000Z",
+      "hora_inicio": "00:01",
+      "data_fim": "2026-10-14T00:00:00.000Z",
+      "hora_fim": "23:59",
+      "poligono": "{\"type\":\"Polygon\",\"coordinates\":[[[-72.285029,-4.977813],[-71.064514,-6.580723],[-67.500619,-8.902694],[-64.522569,-10.010341],[-61.935082,-10.538777],[-59.689341,-9.86607],[-58.76175,-8.950925],[-58.615289,-5.804122],[-58.859391,-3.565921],[-60.421646,-1.175825],[-61.642158,0.191131],[-62.344992,1.45733],[-62.830811,2.179609],[-63.304407,2.285757],[-63.314261,2.144248],[-63.937031,1.924815],[-64.010262,1.741824],[-64.132313,1.510009],[-64.376416,1.363587],[-64.608313,1.265967],[-64.925646,1.058513],[-65.242979,0.863249],[-65.450467,0.60695],[-65.572517,0.643565],[-65.633543,0.863249],[-65.755595,0.875453],[-66.036312,0.692385],[-66.426876,0.65577],[-66.915081,1.095123],[-67.110363,1.08292],[-67.183593,1.241561],[-67.183593,1.607618],[-67.415491,2.071195],[-67.610773,1.937014],[-67.964722,1.729624],[-68.282054,1.680823],[-69.710054,1.680823],[-69.807695,1.241561],[-69.209644,1.143937],[-69.087593,0.948678],[-69.124208,0.594745],[-69.29508,0.545925],[-69.624618,0.58254],[-70.002977,0.460488],[-70.002977,-0.064352],[-69.685644,-0.345081],[-69.478157,-0.674621],[-69.331695,-1.162785],[-69.392721,-1.675266],[-69.917541,-4.356556],[-70.125028,-4.429574],[-70.405746,-4.307872],[-70.588823,-4.271358],[-70.79631,-4.356556],[-71.040412,-4.441744],[-71.516412,-4.575591],[-71.906976,-4.685084],[-72.187694,-4.818885],[-72.285029,-4.977813]]]}",
+      "municipios": "Alto Paraíso - RO (1100403),Alvarães - AM (1300029),Amaturá - AM (1300060),Anamã - AM (1300086),Anori - AM (1300102),Apuí - AM (1300144),Aripuanã - MT (5101407),Ariquemes - RO (1100023),Atalaia do Norte - AM (1300201),Autazes - AM (1300300),Barcelos - AM (1300409),Benjamin Constant - AM (1300607)",
+      "microrregioes": "Ariquemes,Tefé,Alto Solimões,Coari,Madeira,Aripuanã,Manaus,Rio Negro,Boca do Acre,Porto Velho,Purus,Caracaraí",
+      "mesorregioes": "Leste Rondoniense,Centro Amazonense,Sudoeste Amazonense,Sul Amazonense,Norte Mato-grossense,Norte Amazonense,Madeira-Guaporé,Sul de Roraima",
+      "estados": "Rondônia,Amazonas,Mato Grosso,Roraima",
+      "regioes": "Norte,Centro-Oeste",
+      "geocodes": "1100403,1300029,1300060,1300086,1300102,1300144,5101407,1100023,1300201,1300300,1300409,1300607",
+      "alterado": false,
+      "encerrado": false,
+      "created_at": "2026-10-10T00:00:00.000Z",
+      "updated_at": "2026-10-10T00:00:00.000Z",
+      "inicio": "2026-10-14 00:01",
+      "fim": "2026-10-14 23:59",
+      "descricao": "Chuvas Intensas",
+      "aviso_cor": "#FFFE00",
+      "id_severidade": 6,
+      "severidade": "Perigo Potencial",
+      "riscos": [
+        "Chuva entre 20 e 30 mm/h ou até 50 mm/dia, ventos intensos (40-60 km/h). Baixo risco de corte de energia elétrica, queda de galhos de árvores, alagamentos e de descargas elétricas."
+      ],
+      "instrucoes": [
+        "Em caso de rajadas de vento: (não se abrigue debaixo de árvores, pois há leve risco de queda e descargas elétricas e não estacione veículos próximos a torres de transmissão e placas de propaganda). ",
+        "Evite usar aparelhos eletrônicos ligados à tomada. ",
+        "Obtenha mais informações junto à Defesa Civil (telefone 199) e ao Corpo de Bombeiros (telefone 193)."
+      ]
+    },
+    {
+      "id": 56046,
+      "id_aviso": 28478,
+      "id_sequencia": 1,
+      "id_condicao_severa": 38,
+      "id_icone": 152,
+      "id_usuario": 19,
+      "codigo": "urn:oid:2.49.0.0.76.0.2026.28478.1",
+      "referencia": null,
+      "data_inicio": "2026-10-14T00:00:00.000Z",
+      "hora_inicio": "00:00",
+      "data_fim": "2026-10-14T00:00:00.000Z",
+      "hora_fim": "23:59",
+      "poligono": "{\"type\":\"Polygon\",\"coordinates\":[[[-58.359375,-16.383391],[-60.336914,-16.341226],[-60.336914,-13.923404],[-63.193359,-12.554564],[-60.820313,-11.436955],[-59.238281,-12.297068],[-57.260742,-15.029686],[-54.140625,-16.341226],[-52.163086,-17.182779],[-48.867188,-18.39623],[-46.494141,-19.642588],[-44.824219,-20.591652],[-43.901367,-20.838278],[-42.319336,-21.0845],[-41.176758,-21.493964],[-40.98999,-21.606365],[-40.935059,-22.004175],[-41.583252,-22.299261],[-41.912842,-22.563293],[-41.934814,-22.684984],[-41.85791,-22.776182],[-41.967773,-22.928042],[-41.967773,-22.998852],[-42.121582,-22.968509],[-43.000488,-23.008964],[-43.352051,-23.049407],[-43.912354,-23.120154],[-44.176025,-23.211058],[-44.483643,-23.32208],[-44.747314,-23.433009],[-45.065918,-23.563987],[-45.20874,-23.654588],[-45.153809,-23.825551],[-45.252686,-23.986253],[-45.604248,-23.905927],[-46.032715,-23.895883],[-46.164551,-24.006326],[-46.549072,-24.116675],[-46.999512,-24.407138],[-47.856445,-25.055745],[-48.262939,-25.572176],[-48.526611,-26.086388],[-48.515625,-26.342653],[-48.55957,-27.098254],[-49.96582,-27.332735],[-51.240234,-27.137368],[-52.316895,-27.078692],[-53.624268,-26.843677],[-53.723145,-26.676913],[-53.635254,-26.293415],[-53.811035,-25.928407],[-53.898926,-25.61181],[-54.558105,-25.582085],[-54.624023,-25.403585],[-54.448242,-25.135339],[-54.338379,-24.026397],[-54.667969,-23.865745],[-55.437012,-23.946096],[-55.854492,-22.350076],[-58.007813,-22.065278],[-58.139648,-20.13847],[-58.051758,-19.766704],[-57.480469,-17.895114],[-58.359375,-17.14079],[-58.359375,-16.383391]]]}",
+      "municipios": "Abatiá - PR (4100103),Abelardo Luz - SC (4200101),Acorizal - MT (5100102),Adamantina - SP (3500105),Adolfo - SP (3500204),Adrianópolis - PR (4100202),Agronômica - SC (4200309),Água Clara - MS (5000203),Água Comprida - MG (3100708),Água Doce - SC (4200408),Aguaí - SP (3500303),Aguanil - MG (3100807)",
+      "microrregioes": "Cornélio Procópio,Xanxerê,Rosário Oeste,Adamantina,São José do Rio Preto,Cerro Azul,Rio do Sul,Três Lagoas,Uberaba,Joaçaba,Pirassununga,Campo Belo",
+      "mesorregioes": "Norte Pioneiro Paranaense,Oeste Catarinense,Centro-Sul Mato-grossense,Presidente Prudente,São José do Rio Preto,Metropolitana de Curitiba,Vale do Itajaí,Leste de Mato Grosso do Sul,Triângulo Mineiro/Alto Paranaíba,Campinas,Oeste de Minas,Bauru,Piracicaba,Sul/Sudoeste de Minas,Itapetininga,Centro Norte de Mato Grosso do Sul,Zona da Mata,Campo das Vertentes,Leste Rondoniense,Centro Ocidental Paranaense,Ribeirão Preto,Araçatuba,Sudeste Mato-grossense,Noroeste Paranaense,Macro Metropolitana Paulista,Marília,Norte Central Paranaense,Sudoeste de Mato Grosso do Sul,Araraquara,Sudoeste Paranaense,Oeste Paranaense,Pantanais Sul Mato-grossense,Sul Fluminense,Sudeste Paranaense,Vale do Paraíba Paulista,Sul Goiano,Noroeste Fluminense,Centro Oriental Paranaense,Sudoeste Mato-grossense,Norte Catarinense,Baixadas,Centro Fluminense,Metropolitana de São Paulo,Assis,Litoral Sul Paulista,Metropolitana do Rio de Janeiro,Centro-Sul Paranaense,Norte Mato-grossense,Norte Fluminense,Grande Florianópolis,Metropolitana de Belo Horizonte,Serrana,Central Mineira,Madeira-Guaporé",
+      "estados": "Paraná,Santa Catarina,Mato Grosso,São Paulo,Mato Grosso do Sul,Minas Gerais,Rondônia,Rio de Janeiro,Goiás",
+      "regioes": "Sul,Centro-Oeste,Sudeste,Norte",
+      "geocodes": "4100103,4200101,5100102,3500105,3500204,4100202,4200309,5000203,3100708,4200408,3500303,3100807",
+      "alterado": false,
+      "encerrado": false,
+      "created_at": "2026-10-11T00:00:00.000Z",
+      "updated_at": "2026-10-11T00:00:00.000Z",
+      "inicio": "2026-10-14 00:00",
+      "fim": "2026-10-14 23:59",
+      "descricao": "Tempestade",
+      "aviso_cor": "#FFFE00",
+      "id_severidade": 6,
+      "severidade": "Perigo Potencial",
+      "riscos": [
+        "Chuva entre 20 e 30 mm/h ou até 50 mm/dia, ventos intensos (40-60 km/h), e queda de granizo. Baixo risco de corte de energia elétrica, estragos em plantações, queda de galhos de árvores e de alagamentos."
+      ],
+      "instrucoes": [
+        "Em caso de rajadas de vento: (não se abrigue debaixo de árvores, pois há leve risco de queda e descargas elétricas e não estacione veículos próximos a torres de transmissão e placas de propaganda). ",
+        "Evite usar aparelhos eletrônicos ligados à tomada. ",
+        "Obtenha mais informações junto à Defesa Civil (telefone 199) e ao Corpo de Bombeiros (telefone 193)."
+      ]
+    }
+  ]
+}

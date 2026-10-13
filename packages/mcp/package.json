@@ -1,0 +1,26 @@
+{
+  "name": "@nimbai/mcp",
+  "version": "0.1.0",
+  "description": "NimbAI MCP server: weather intelligence (satellite, radar, lightning, alerts, severe risk) for AI agents.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "nimbai-mcp": "./dist/bin/stdio.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "mcpName": "io.github.brotto/nimbai",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/bin/stdio.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.3.1",
+    "@nimbai/core": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}

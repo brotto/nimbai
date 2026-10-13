@@ -36,6 +36,9 @@ jobs:
       # Antes da Fase 1 não há lockfile nem pacotes; o job passa vazio e endurece sozinho depois.
       - run: |
           if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
+      # build antes de typecheck/test: @nimbai/core é resolvido via dist,
+      # então o pacote mcp só compila depois que o core foi emitido.
+      - run: pnpm build
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
@@ -50,7 +53,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: '3.12'
       - run: |
           if [ -f pyproject.toml ]; then
             pip install -e ".[dev]" && ruff check . && pytest -q

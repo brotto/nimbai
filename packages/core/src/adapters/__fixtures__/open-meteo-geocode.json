@@ -1,0 +1,38 @@
+{
+  "results": [
+    {
+      "id": 3463030,
+      "name": "Foz do Iguaçu",
+      "latitude": -25.54778,
+      "longitude": -54.58806,
+      "elevation": 179.0,
+      "feature_code": "PPLA2",
+      "country_code": "BR",
+      "admin1_id": 3455077,
+      "admin2_id": 6322777,
+      "timezone": "America/Sao_Paulo",
+      "population": 258248,
+      "country_id": 3469034,
+      "country": "Brazil",
+      "admin1": "Paraná",
+      "admin2": "Foz do Iguaçu"
+    },
+    {
+      "id": 6300623,
+      "name": "Foz do Iguaçu / Cataratas International Airport",
+      "latitude": -25.59615,
+      "longitude": -54.48721,
+      "elevation": 239.0,
+      "feature_code": "AIRP",
+      "country_code": "BR",
+      "admin1_id": 3455077,
+      "admin2_id": 6322777,
+      "timezone": "America/Sao_Paulo",
+      "country_id": 3469034,
+      "country": "Brazil",
+      "admin1": "Paraná",
+      "admin2": "Foz do Iguaçu"
+    }
+  ],
+  "generationtime_ms": 0.5836487
+}

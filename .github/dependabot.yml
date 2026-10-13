@@ -13,6 +13,6 @@ updates:
     # Um PR só para todas as actions, em vez de um por action
     groups:
       github-actions:
-        patterns: ["*"]
+        patterns: ['*']
   # pip: reativar na Fase 2, quando services/ingest ganhar pyproject.toml.
   # Antes disso o Dependabot aborta com "No files found in /services/ingest".

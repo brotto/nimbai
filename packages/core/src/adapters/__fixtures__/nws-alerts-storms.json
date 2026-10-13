@@ -1,0 +1,304 @@
+{
+  "@context": [
+    "https://geojson.org/geojson-ld/geojson-context.jsonld",
+    {
+      "@version": "1.1",
+      "wx": "https://api.weather.gov/ontology#",
+      "@vocab": "https://api.weather.gov/ontology#"
+    }
+  ],
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.17dd3588c9bce0a1c967f7b1c10bb34abf5b4ad2.001.1",
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-77.79, 34.88],
+            [-77.85, 35.02],
+            [-77.56, 35.18],
+            [-77.6, 34.89],
+            [-77.79, 34.88]
+          ]
+        ]
+      },
+      "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.17dd3588c9bce0a1c967f7b1c10bb34abf5b4ad2.001.1",
+        "@type": "wx:Alert",
+        "id": "urn:oid:2.49.0.1.840.0.17dd3588c9bce0a1c967f7b1c10bb34abf5b4ad2.001.1",
+        "areaDesc": "Duplin, NC; Jones, NC; Lenoir, NC; Onslow, NC",
+        "sent": "2026-10-11T14:18:00-04:00",
+        "effective": "2026-10-11T14:18:00-04:00",
+        "onset": "2026-10-11T14:18:00-04:00",
+        "expires": "2026-10-11T14:45:00-04:00",
+        "ends": "2026-10-11T14:45:00-04:00",
+        "status": "Actual",
+        "messageType": "Update",
+        "category": "Met",
+        "severity": "Extreme",
+        "certainty": "Observed",
+        "urgency": "Immediate",
+        "event": "Tornado Warning",
+        "sender": "w-nws.webmaster@noaa.gov",
+        "senderName": "NWS Newport/Morehead City NC",
+        "headline": "Tornado Warning issued October 11 at 2:18PM EDT until October 11 at 2:45PM EDT by NWS Newport/Morehead City NC",
+        "description": "At 218 PM EDT, a confirmed large and extremely dangerous tornado was\nlocated over Beulaville, or 18 miles northwest of Half Moon, moving\nnortheast at 30 mph.\n\nThis is a PARTICULARLY DANGEROUS SITUATION. TAKE COVER NOW!\n\nHAZARD...Damaging tornado.\n\nSOURCE...Radar confirmed tornado.\n\nIMPACT...You are in a life-threatening situation. Flying debris may\nbe deadly to those caught without shelter. Mobile homes\nwill be destroyed. Considerable damage to homes,\nbusinesses, and vehicles is likely and complete destruction\nis possible.\n\nThe tornado will be near...\nPotters Hill around 225 PM EDT.\nPleasant Hill around 235 PM EDT.\n\nOther locations impacted by this tornadic thunderstorm include Pink\nHill and Hargetts Crossroads.",
+        "instruction": "To repeat, a large, extremely dangerous and potentially deadly\ntornado is on the ground. To protect your life, TAKE COVER NOW! Move\nto a basement or an interior room on the lowest floor of a sturdy\nbuilding. Avoid windows. If you are outdoors, in a mobile home, or in\na vehicle, move to the closest substantial shelter and protect\nyourself from flying debris.\n\nIf a tornado or other severe weather is spotted, report it to the\nNational Weather Service or your local nearest law enforcement agency\nwho will send your report. This act may save lives of others in the\npath of dangerous weather.",
+        "response": "Shelter",
+        "note": null,
+        "parameters": {
+          "AWIPSidentifier": ["SVSMHX"],
+          "WMOidentifier": ["WWUS52 KMHX 111818"],
+          "NWSheadline": [
+            "A TORNADO WARNING REMAINS IN EFFECT UNTIL 245 PM EDT FOR WEST CENTRAL JONES...SOUTH CENTRAL LENOIR...NORTHWESTERN ONSLOW AND EAST CENTRAL DUPLIN COUNTIES"
+          ],
+          "eventMotionDescription": [
+            "2026-10-11T18:18:00-00:00...storm...230DEG...27KT...34.94,-77.76"
+          ],
+          "maxHailSize": ["0.00"],
+          "tornadoDetection": ["OBSERVED"],
+          "tornadoDamageThreat": ["CONSIDERABLE"],
+          "BLOCKCHANNEL": ["EAS", "NWEM", "CMAS"],
+          "EAS-ORG": ["WXR"],
+          "VTEC": ["/O.CON.KMHX.TO.W.0007.000000T0000Z-261011T1845Z/"],
+          "eventEndingTime": ["2026-10-11T14:45:00-04:00"]
+        },
+        "scope": "Public",
+        "code": "IPAWSv1.0",
+        "language": "en-US",
+        "web": "http://www.weather.gov",
+        "eventCode": {
+          "SAME": ["SVS"],
+          "NationalWeatherService": ["TOW"]
+        },
+        "replacedBy": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.52d2c35ecb8ee25d740f8876f9c949c7a88e72a7.002.1",
+        "replacedAt": "2026-10-11T14:34:00-04:00"
+      }
+    },
+    {
+      "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.dc9ea50b355103cb8ac91dbedf4042dfed9f550b.001.1",
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-105.21, 37.12],
+            [-105.9, 37.6],
+            [-105.38, 37.88],
+            [-104.74, 37.44],
+            [-105.21, 37.12]
+          ]
+        ]
+      },
+      "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.dc9ea50b355103cb8ac91dbedf4042dfed9f550b.001.1",
+        "@type": "wx:Alert",
+        "id": "urn:oid:2.49.0.1.840.0.dc9ea50b355103cb8ac91dbedf4042dfed9f550b.001.1",
+        "areaDesc": "Alamosa, CO; Costilla, CO; Huerfano, CO; Las Animas, CO; Saguache, CO",
+        "sent": "2026-10-11T18:30:00-06:00",
+        "effective": "2026-10-11T18:30:00-06:00",
+        "onset": "2026-10-11T18:30:00-06:00",
+        "expires": "2026-10-11T19:00:00-06:00",
+        "ends": "2026-10-11T19:00:00-06:00",
+        "status": "Actual",
+        "messageType": "Alert",
+        "category": "Met",
+        "severity": "Severe",
+        "certainty": "Observed",
+        "urgency": "Immediate",
+        "event": "Severe Thunderstorm Warning",
+        "sender": "w-nws.webmaster@noaa.gov",
+        "senderName": "NWS Pueblo CO",
+        "headline": "Severe Thunderstorm Warning issued October 11 at 6:30PM MDT until October 11 at 7:00PM MDT by NWS Pueblo CO",
+        "description": "SVRPUB\n\nThe National Weather Service in Pueblo has issued a\n\n* Severe Thunderstorm Warning for...\nEastern Alamosa County in southeastern Colorado...\nSouthwestern Huerfano County in southeastern Colorado...\nNorthern Costilla County in south central Colorado...\nSoutheastern Saguache County in central Colorado...\nWest central Las Animas County in southeastern Colorado...\n\n* Until 700 PM MDT.\n\n* At 630 PM MDT, a severe thunderstorm was located 9 miles southwest\nof La Veta Pass, or 33 miles east of San Luis Valley Airport,\nmoving northeast at 60 mph.\n\nHAZARD...70 mph wind gusts.\n\nSOURCE...Radar indicated.\n\nIMPACT...Expect considerable tree damage. Damage is likely to\nmobile homes, roofs, and outbuildings.\n\n* Locations impacted include...\nLa Veta, Blanca, La Veta Pass, Cuchara Pass, Spanish Peaks,\nCuchara, San Luis Lake, Red Wing, Fort Garland, Great Sand Dunes,\nBlanca Peak, Spring Burn Scar south of Highway 160 in Costilla\ncounty, Spring Burn Scar north of Highway 160, Spring Burn Scar\nsouth of Highway 160 in Huerfano county, and Indian Creek on the\nsoutheastern Spring Burn Scar.",
+        "instruction": "For your protection move to an interior room on the lowest floor of a\nbuilding.",
+        "response": "Shelter",
+        "note": null,
+        "parameters": {
+          "AWIPSidentifier": ["SVRPUB"],
+          "WMOidentifier": ["WUUS55 KPUB 120030"],
+          "eventMotionDescription": [
+            "2026-10-12T00:30:00-00:00...storm...230DEG...51KT...37.48,-105.26"
+          ],
+          "windThreat": ["RADAR INDICATED"],
+          "maxWindGust": ["70 MPH"],
+          "hailThreat": ["RADAR INDICATED"],
+          "maxHailSize": ["Up to .75"],
+          "thunderstormDamageThreat": ["CONSIDERABLE"],
+          "BLOCKCHANNEL": ["EAS", "NWEM", "CMAS"],
+          "EAS-ORG": ["WXR"],
+          "VTEC": ["/O.NEW.KPUB.SV.W.0369.261012T0030Z-261012T0100Z/"],
+          "eventEndingTime": ["2026-10-11T19:00:00-06:00"]
+        },
+        "scope": "Public",
+        "code": "IPAWSv1.0",
+        "language": "en-US",
+        "web": "http://www.weather.gov",
+        "eventCode": {
+          "SAME": ["SVR"],
+          "NationalWeatherService": ["SVW"]
+        },
+        "replacedBy": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.2e0a31fee44583c9764aa802c3c606b44375322a.001.1",
+        "replacedAt": "2026-10-11T18:58:00-06:00"
+      }
+    },
+    {
+      "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cf8aa8bf231a11051ed758eea435dc1b1e048ab4.001.2",
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cf8aa8bf231a11051ed758eea435dc1b1e048ab4.001.2",
+        "@type": "wx:Alert",
+        "id": "urn:oid:2.49.0.1.840.0.cf8aa8bf231a11051ed758eea435dc1b1e048ab4.001.2",
+        "areaDesc": "Coastal Waters extending out to 25 NM South of Marthas Vineyard and Nantucket; Coastal Waters from Montauk NY to Marthas Vineyard extending out to 20 NM South of Block Island",
+        "sent": "2026-10-13T02:00:00-04:00",
+        "effective": "2026-10-13T02:00:00-04:00",
+        "onset": "2026-10-14T01:00:00-04:00",
+        "expires": "2026-10-13T16:00:00-04:00",
+        "ends": "2026-10-14T20:00:00-04:00",
+        "status": "Actual",
+        "messageType": "Alert",
+        "category": "Met",
+        "severity": "Minor",
+        "certainty": "Likely",
+        "urgency": "Expected",
+        "event": "Small Craft Advisory",
+        "sender": "w-nws.webmaster@noaa.gov",
+        "senderName": "NWS Boston/Norton MA",
+        "headline": "Small Craft Advisory issued October 13 at 2:00AM EDT until October 14 at 8:00PM EDT by NWS Boston/Norton MA",
+        "description": "* WHAT...For the first Small Craft Advisory, northeast winds 10\nto 20 kt and seas 3 to 5 feet. For the second Small Craft\nAdvisory, southwest winds 15 to 20 kt with gusts up to 25 kt\nand seas 4 to 7 feet expected.\n\n* WHERE...In Massachusetts coastal waters, Coastal Waters\nextending out to 25 NM South of Marthas Vineyard and\nNantucket. In Rhode Island coastal waters, Coastal Waters from\nMontauk NY to Marthas Vineyard extending out to 20 NM South of\nBlock Island.\n\n* WHEN...For the first Small Craft Advisory, until 8 AM EDT this\nmorning. For the second Small Craft Advisory, from 1 AM to 8\nPM EDT Wednesday.\n\n* IMPACTS...Conditions will be hazardous to small craft.",
+        "instruction": "Inexperienced mariners, especially those operating smaller\nvessels, should avoid navigating in hazardous conditions.",
+        "response": "Avoid",
+        "note": null,
+        "parameters": {
+          "AWIPSidentifier": ["MWWBOX"],
+          "WMOidentifier": ["WHUS71 KBOX 130600"],
+          "NWSheadline": [
+            "SMALL CRAFT ADVISORY REMAINS IN EFFECT UNTIL 8 AM EDT THIS MORNING... ...SMALL CRAFT ADVISORY IN EFFECT FROM 1 AM TO 8 PM EDT WEDNESDAY"
+          ],
+          "BLOCKCHANNEL": ["EAS", "NWEM", "CMAS"],
+          "VTEC": ["/O.NEW.KBOX.SC.Y.0097.261014T0500Z-261015T0000Z/"],
+          "eventEndingTime": ["2026-10-14T20:00:00-04:00"]
+        },
+        "scope": "Public",
+        "code": "IPAWSv1.0",
+        "language": "en-US",
+        "web": "http://www.weather.gov",
+        "eventCode": {
+          "SAME": ["NWS"],
+          "NationalWeatherService": ["SCY"]
+        }
+      }
+    },
+    {
+      "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.83e8512db1b8fc55b3d8b421a208ce7f1598dd5b.001.1",
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-86.5, 30.78],
+            [-86.49, 30.78],
+            [-86.53, 30.69],
+            [-86.63, 30.69],
+            [-86.63, 30.7],
+            [-86.55, 30.7],
+            [-86.5, 30.78]
+          ]
+        ]
+      },
+      "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.83e8512db1b8fc55b3d8b421a208ce7f1598dd5b.001.1",
+        "@type": "wx:Alert",
+        "id": "urn:oid:2.49.0.1.840.0.83e8512db1b8fc55b3d8b421a208ce7f1598dd5b.001.1",
+        "areaDesc": "Okaloosa, FL",
+        "sent": "2026-10-12T22:33:00-05:00",
+        "effective": "2026-10-12T22:33:00-05:00",
+        "onset": "2026-10-12T22:33:00-05:00",
+        "expires": "2026-10-13T10:45:00-05:00",
+        "ends": "2026-10-13T23:00:00-05:00",
+        "status": "Actual",
+        "messageType": "Alert",
+        "category": "Met",
+        "severity": "Severe",
+        "certainty": "Observed",
+        "urgency": "Immediate",
+        "event": "Flood Warning",
+        "sender": "w-nws.webmaster@noaa.gov",
+        "senderName": "NWS Mobile AL",
+        "headline": "Flood Warning issued October 12 at 10:33PM CDT until October 13 at 11:00PM CDT by NWS Mobile AL",
+        "description": "...The Flood Warning is extended for the following rivers in\nFlorida...\n\nShoal River Near Crestview affecting Okaloosa County.\n\nFor the Shoal River...including Crestview...Minor flooding is\nforecast.\n\n* WHAT...Minor flooding is occurring.\n\n* WHERE...Shoal River near Crestview.\n\n* WHEN...Until Tuesday evening.\n\n* IMPACTS...At 10.0 feet, Some flooding of trailers north of the\nOkaloosa Correctional Institute. Water surrounds home on Sowel\nRoad.\n\n* ADDITIONAL DETAILS...\n- At 9:15 PM CDT Monday the stage was 9.3 feet.\n- Forecast...The river is expected to fall below flood stage\nTuesday afternoon and continue falling to 6.8 feet Saturday\nevening.\n- Flood stage is 8.0 feet.\n- http://www.weather.gov/safety/flood",
+        "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nAdditional information is available at www.weather.gov/mob. Click on\nthe Rivers and Lakes menu for forecasts and observations.\n\nThe next statement will be issued when updates occur.",
+        "response": "Avoid",
+        "note": null,
+        "parameters": {
+          "AWIPSidentifier": ["FLSMOB"],
+          "WMOidentifier": ["WGUS84 KMOB 130333"],
+          "NWSheadline": ["FLOOD WARNING NOW IN EFFECT UNTIL TUESDAY EVENING"],
+          "BLOCKCHANNEL": ["EAS", "NWEM", "CMAS"],
+          "EAS-ORG": ["WXR"],
+          "VTEC": ["/O.EXT.KMOB.FL.W.0048.000000T0000Z-261014T0400Z/"],
+          "eventEndingTime": ["2026-10-13T23:00:00-05:00"],
+          "expiredReferences": [
+            "w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.44b929ce954530f851084c0fa99b6fd743f243cf.001.1,2026-10-12T07:58:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.2e0f763c4a43c80c8d3d59bee87ccb5bc24fc578.001.1,2026-10-11T20:42:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.5b20df7677ae257204c245c06da5f08702ddbeb2.001.1,2026-10-11T08:55:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.d2fe30d00195d8a92ab5fd52f791213138f3d088.001.1,2026-10-11T04:47:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.9d640a7de0f591f69ed47b938dcf5aa412012e71.001.1,2026-10-10T20:41:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.a519de814aaeac91013b5464bb4e4e66dc5c7cf6.001.1,2026-10-10T09:47:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.b35f4371a930d682115bfacce2c8f1fd4a60c596.001.1,2026-10-10T00:46:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.86658255771cabced6a8d66b36a36aeac5f9d3c0.001.1,2026-10-09T21:00:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.db0ee09963865ffdf0ebfdd854335cdca59315da.001.1,2026-10-09T09:12:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.a9ae69686cb7ff24464b7fdf8a7e2e164d554aba.001.1,2026-10-08T20:21:00-05:00 w-nws.webmaster@noaa.gov,urn:oid:2.49.0.1.840.0.7a2b1e0a3897bb508f4d6ca35041fe8182a0e6b3.001.1,2026-10-08T08:38:00-05:00"
+          ]
+        },
+        "scope": "Public",
+        "code": "IPAWSv1.0",
+        "language": "en-US",
+        "web": "http://www.weather.gov",
+        "eventCode": {
+          "SAME": ["FLS"],
+          "NationalWeatherService": ["FLW"]
+        }
+      }
+    },
+    {
+      "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0-KEEPALIVE-56161",
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0-KEEPALIVE-56161",
+        "@type": "wx:Alert",
+        "id": "urn:oid:2.49.0.1.840.0-KEEPALIVE-56161",
+        "areaDesc": "Montgomery",
+        "sent": "2026-10-13T06:03:32+00:00",
+        "effective": "2026-10-13T06:03:32+00:00",
+        "onset": null,
+        "expires": "2026-10-13T06:13:32+00:00",
+        "ends": null,
+        "status": "Test",
+        "messageType": "Alert",
+        "category": "Met",
+        "severity": "Unknown",
+        "certainty": "Unknown",
+        "urgency": "Unknown",
+        "event": "Test Message",
+        "sender": "w-nws.webmaster@noaa.gov",
+        "senderName": "NWS",
+        "headline": null,
+        "description": "Monitoring message only. Please disregard.",
+        "instruction": "Monitoring message only. Please disregard.",
+        "response": "None",
+        "note": "This is only a test for monitoring of vital dissemination systems.",
+        "parameters": {
+          "AWIPSidentifier": ["KEPWBC"],
+          "WMOidentifier": ["NZUS91 KWBC 130603"],
+          "BLOCKCHANNEL": ["CMAS", "EAS", "NWEM"]
+        },
+        "scope": "Public",
+        "code": "IPAWSv1.0",
+        "language": "en-US",
+        "web": "http://www.weather.gov",
+        "eventCode": {
+          "SAME": ["NWS"],
+          "NationalWeatherService": ["TST"]
+        }
+      }
+    }
+  ],
+  "title": "Current watches, warnings, and advisories (fixture: real features, trimmed)",
+  "updated": "2026-10-13T06:04:16+00:00"
+}
