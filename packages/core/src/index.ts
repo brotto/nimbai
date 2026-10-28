@@ -3,6 +3,7 @@ export * from './sources.js';
 export * from './http.js';
 export * from './adapters/geocode.js';
 export * from './adapters/forecast.js';
+export * from './adapters/observed.js';
 export * from './adapters/alerts.js';
 export * from './adapters/severe.js';
 export * from './adapters/satellite.js';

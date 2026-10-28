@@ -174,24 +174,35 @@ describe('getAlerts - outside the US', () => {
     expect(coverage).toContain('não é ausência de risco');
   });
 
+  // Frozen: the fixture's warnings are valid on 13 Oct 2026, and getAlerts now
+  // lists only warnings in force, so on any later day this would see an empty
+  // list and assert nothing.
   it('Brazil: matches INMET by polygon and keeps the official text', async () => {
-    const urls: string[] = [];
-    const { alerts, coverage } = await getAlerts(clientWith([storms, inmet], urls), {
-      lat: -25.54,
-      lon: -54.58,
-    });
-    expect(urls).toEqual([INMET]);
-    expect(alerts.map((a) => a.id)).toEqual(['inmet:56014']);
-    const a = alerts[0];
-    expect(a?.event).toBe('Tempestade');
-    expect(a?.severity).toBe('Perigo Potencial');
-    expect(a?.attribution.source).toBe('inmet');
-    expect(a?.onset).toBe('2026-10-13 00:00');
-    expect(a?.text).toContain('Chuva entre 20 e 30 mm/h ou até 50 mm/dia');
-    expect(a?.text).toContain('Obtenha mais informações junto à Defesa Civil (telefone 199)');
-    expect(coverage).toContain('INMET (Brasil) consultado');
-    expect(coverage).toContain('envelope aproximado');
-    expect(coverage).toContain('EUA');
+    vi.useFakeTimers();
+    // finally, not a trailing call: a failing expect would otherwise leak fake
+    // timers into every test that runs after this one.
+    try {
+      vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+      const urls: string[] = [];
+      const { alerts, coverage } = await getAlerts(clientWith([storms, inmet], urls), {
+        lat: -25.54,
+        lon: -54.58,
+      });
+      expect(urls).toEqual([INMET]);
+      expect(alerts.map((a) => a.id)).toEqual(['inmet:56014']);
+      const a = alerts[0];
+      expect(a?.event).toBe('Tempestade');
+      expect(a?.severity).toBe('Perigo Potencial');
+      expect(a?.attribution.source).toBe('inmet');
+      expect(a?.onset).toBe('2026-10-13 00:00');
+      expect(a?.text).toContain('Chuva entre 20 e 30 mm/h ou até 50 mm/dia');
+      expect(a?.text).toContain('Obtenha mais informações junto à Defesa Civil (telefone 199)');
+      expect(coverage).toContain('INMET (Brasil) consultado');
+      expect(coverage).toContain('envelope aproximado');
+      expect(coverage).toContain('EUA');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('Brazil: a point outside every published polygon yields no alert', async () => {

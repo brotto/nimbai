@@ -7,6 +7,7 @@ import {
   getAlerts,
   getCurrentConditions,
   getForecast,
+  getObservedConditions,
   getImageryLoop,
   getLightning,
   getRadarLatest,
@@ -181,8 +182,10 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       title: 'Weather summary',
       description:
         'Current conditions, the next hours of forecast and any active official alerts for one ' +
-        'point. The usual second call after nimbai_search_location. Use detail="summary" unless ' +
-        'the user asks for depth — it costs roughly a third of the tokens.',
+        'point. The usual second call after nimbai_search_location. Returns `observed` (a real ' +
+        'METAR measurement from the nearest station, with its distance and age) separately from ' +
+        '`modelled` (what the model computed for this cell) — tell the user which one you are ' +
+        'quoting. Use detail="summary" unless the user asks for depth.',
       inputSchema: PlaceSchema.extend({
         detail: z.enum(['summary', 'standard', 'full']).default('summary'),
       }),
@@ -196,10 +199,11 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         const hours = input.detail === 'summary' ? 12 : input.detail === 'standard' ? 48 : 120;
         // allSettled, not all: one source failing must not take the whole
         // summary down, least of all the alerts.
-        const [currentR, forecastR, alertsR] = await Promise.allSettled([
+        const [currentR, forecastR, alertsR, observedR] = await Promise.allSettled([
           getCurrentConditions(http, point),
           getForecast(http, { ...point, hours }),
           getAlerts(http, point),
+          getObservedConditions(http, point),
         ]);
         // Only give up when nothing at all came back. If the weather failed but
         // the alerts resolved, the alerts are the part that matters most.
@@ -211,6 +215,8 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
           throw currentR.reason;
         }
 
+        const observed = observedR.status === 'fulfilled' ? observedR.value : null;
+        const obs = observed?.observed ?? null;
         const current = currentR.status === 'fulfilled' ? currentR.value : null;
         const forecast = forecastR.status === 'fulfilled' ? forecastR.value : null;
         const alerts = alertsR.status === 'fulfilled' ? alertsR.value : null;
@@ -219,16 +225,20 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         if (current !== null) attributions.push(current.attribution);
         if (forecast !== null) attributions.push(forecast.attribution);
         if (alerts !== null) attributions.push(...alerts.alerts.map((a) => a.attribution));
+        if (obs !== null) attributions.push(obs.attribution);
 
         const unavailable: string[] = [];
-        if (current === null) unavailable.push('current conditions');
+        if (current === null) unavailable.push('model current conditions');
+        if (obs === null) unavailable.push('surface observation (METAR)');
         if (forecast === null) unavailable.push('forecast');
         if (alerts === null) unavailable.push('official alerts');
 
         const conditionLine =
-          current === null
-            ? 'Current conditions unavailable.'
-            : `${current.weatherText}, ${current.temperatureC ?? '?'}°C.`;
+          obs !== null
+            ? `Observed ${obs.temperatureC ?? '?'}°C at ${obs.station.id}, ${obs.distanceKm} km away, ${obs.ageMin} min ago.`
+            : current === null
+              ? 'Current conditions unavailable.'
+              : `${current.weatherText}, ${current.temperatureC ?? '?'}°C (model analysis, not a measurement).`;
         const alertLine =
           alerts === null
             ? 'Official alerts could NOT be checked — this is not an all-clear.'
@@ -239,7 +249,13 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         return ok({
           summary: `${conditionLine} ${alertLine}`,
           data: {
-            current,
+            // Kept apart on purpose: `observed` is what an instrument
+            // measured at a station some distance away; `modelled` is what a
+            // model computed for this grid cell. Reporting the second as the
+            // first is the kind of quiet dishonesty this project exists to avoid.
+            observed: obs,
+            observed_coverage: observed?.coverage ?? 'Surface observation lookup failed.',
+            modelled: current,
             forecast:
               forecast === null
                 ? null

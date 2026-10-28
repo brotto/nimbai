@@ -19,6 +19,7 @@ const PROBES: Partial<Record<SourceId, string>> = {
   'open-meteo':
     'https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m',
   inmet: 'https://apiprevmet3.inmet.gov.br/avisos/ativos',
+  aviationweather: 'https://aviationweather.gov/api/data/metar?ids=KJFK&format=json',
   'nws-radar': 'https://radar.weather.gov/ridge/standard/CONUS_0.gif',
 };
 
@@ -36,6 +37,7 @@ const TYPICAL_LATENCY_MIN: Partial<Record<SourceId, number>> = {
   'nws-radar': 5,
   meteoalarm: 10,
   inmet: 15,
+  aviationweather: 10,
 };
 
 export async function getSourcesStatus(

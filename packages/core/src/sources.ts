@@ -75,6 +75,14 @@ export const SOURCES = {
     url: 'https://open-meteo.com',
     termsPending: true,
   },
+  aviationweather: {
+    id: 'aviationweather',
+    name: 'NOAA Aviation Weather Center (METAR)',
+    origins: ['https://aviationweather.gov'],
+    license: 'public domain (US Government)',
+    attribution: 'Source: NOAA/NWS Aviation Weather Center',
+    url: 'https://aviationweather.gov',
+  },
   meteoalarm: {
     id: 'meteoalarm',
     name: 'MeteoAlarm (EUMETNET)',
