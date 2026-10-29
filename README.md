@@ -26,7 +26,7 @@ Hermes (`~/.hermes/config.yaml`), OpenClaw (`openclaw mcp set nimbai …`), Kimi
 Skill para o modelo: `npx skills add nimbai-app/nimbai` (instala `skills/nimbai`).
 
 ## Tools
-`nimbai_search_location` · `nimbai_get_summary` · `nimbai_get_forecast` · `nimbai_get_alerts` · `nimbai_get_satellite_latest` · `nimbai_get_radar_latest` · `nimbai_get_imagery_loop` · `nimbai_get_lightning` · `nimbai_get_severe_risk` · `nimbai_get_sources_status`
+`nimbai_search_location` · `nimbai_get_summary` · `nimbai_get_forecast` · `nimbai_get_alerts` · `nimbai_get_satellite_latest` · `nimbai_get_radar_latest` · `nimbai_get_imagery_loop` · `nimbai_get_lightning` · `nimbai_get_sounding` · `nimbai_get_severe_risk` · `nimbai_get_sources_status`
 Toda resposta traz `valid_time`, `bbox`, `source` e `attribution`; imagens vêm como miniatura inline + link em alta resolução.
 
 ## Fontes

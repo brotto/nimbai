@@ -13,12 +13,14 @@ import {
   getRadarLatest,
   getSatelliteLatest,
   getSevereRisk,
+  getSounding,
   getSourcesStatus,
   searchLocation,
   type Attribution,
   type Bbox,
   type ConsultedSource,
   type Location,
+  type Sounding,
 } from '@nimbai/core';
 import { fail, ok, type ToolResult } from './response.js';
 
@@ -114,6 +116,44 @@ export function alertSummary(count: number, consulted: ConsultedSource[]): strin
   return `No active official alert from ${answered.join(', ')}. Absence of an alert is not absence of risk.`;
 }
 
+/**
+ * One sentence a model can read out. It names which parcel the CAPE belongs
+ * to and puts the model's own value next to NimbAI's, because quoting one as
+ * if it were the other is the easiest mistake to make with this tool.
+ */
+export function soundingSummary(sounding: Sounding): string {
+  const sb = sounding.thermodynamics.surfaceParcel;
+  const k = sounding.kinematics;
+  const n = (v: number | null | undefined, unit: string, digits = 0): string =>
+    v === null || v === undefined ? 'n/a' : `${v.toFixed(digits)} ${unit}`;
+
+  const parcel =
+    sb === null
+      ? 'No parcel could be lifted from this profile.'
+      : `Surface parcel: CAPE ${n(sb.capeJkg, 'J/kg')}${sb.capeTruncated ? ' (LOWER BOUND — still buoyant at the profile top)' : ''}, ` +
+        `CIN ${n(sb.cinJkg, 'J/kg')} (negative by convention), ` +
+        `LCL ${n(sb.lclHeightAglM, 'm AGL')}, LFC ${n(sb.lfcHeightAglM, 'm AGL')}.`;
+  const mlCape = sounding.thermodynamics.mixedLayerParcel?.capeJkg;
+  const mixed = mlCape === undefined ? '' : ` Mixed-layer CAPE ${n(mlCape, 'J/kg')}.`;
+  const mover = k.cyclonicMover === 'left' ? 'LEFT (cyclonic here)' : 'right (cyclonic here)';
+  // The flipped value is the one quoted, so the sentence has to say it is
+  // flipped and carry the raw integral; otherwise the reader cannot tell
+  // which convention the number is in.
+  const flipped =
+    k.hemisphere === 'southern' && k.srh0to3kmRawM2S2 !== null
+      ? ` (sign-flipped for the Southern Hemisphere; raw integral ${n(k.srh0to3kmRawM2S2, 'm²/s²')})`
+      : '';
+
+  return (
+    `Model sounding valid ${sounding.validTime}. ${parcel}${mixed} ` +
+    `0-6 km shear ${n(k.bulkShear0to6kmMs, 'm/s', 1)}, 0-3 km SRH ` +
+    `${n(k.srh0to3kmM2S2, 'm²/s²')}${flipped} relative to the ${mover} Bunkers mover. ` +
+    `The model's own CAPE for this cell is ${n(sounding.model.capeJkg, 'J/kg')} ` +
+    '(its own parcel and resolution, not a correction of the above). ' +
+    'No radiosonde was launched here.'
+  );
+}
+
 function locationLine(l: Location): string {
   return [l.name, l.admin, l.country].filter((p) => p !== undefined && p !== '').join(', ');
 }
@@ -134,8 +174,8 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       capabilities: { tools: {} },
       instructions:
         'NimbAI serves weather intelligence from official public sources: forecasts, official ' +
-        'alerts (verbatim), satellite and radar imagery, satellite lightning density and ' +
-        'severe-weather risk. Start with nimbai_search_location to resolve a place name, then ' +
+        'alerts (verbatim), satellite and radar imagery, satellite lightning density, vertical ' +
+        'soundings and severe-weather risk. Start with nimbai_search_location to resolve a place name, then ' +
         'nimbai_get_summary. Always show the attribution returned with every result, state the ' +
         'image time, and never present a favourable environment as an official warning.',
     },
@@ -442,6 +482,52 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
           summary: `${result.frames.length} ${input.layer} frames, oldest first.`,
           data: result,
           attributions: result.frames.map((f) => f.attribution),
+        });
+      }),
+  );
+
+  server.registerTool(
+    'nimbai_get_sounding',
+    {
+      title: 'Vertical sounding (Skew-T)',
+      description:
+        'Vertical profile for one point and hour — pressure, height, temperature, dew point and ' +
+        'wind at every model level — plus the parameters derived from it: CAPE, CIN, LCL, LFC, ' +
+        'EL, precipitable water, lapse rates, bulk shear, Bunkers storm motion and storm-relative ' +
+        'helicity. This is a MODEL sounding: no balloon was launched. `thermodynamics` and ' +
+        '`kinematics` are computed by NimbAI from the levels; `model` holds the forecast ' +
+        'model\u2019s own diagnostics. They will differ, and neither corrects the other. South of ' +
+        'the equator the cyclonic supercell is the LEFT mover and the helicity sign is inverted; ' +
+        'read `kinematics.signConvention` before quoting a number.',
+      inputSchema: PlaceSchema.extend({
+        hours_ahead: z
+          .number()
+          .int()
+          .min(0)
+          .max(120)
+          .optional()
+          .describe('Hours from now; 0 (default) is the current hour'),
+      }),
+      annotations: READ_ONLY,
+    },
+    async (input) =>
+      guard(async () => {
+        const point = requirePoint(input);
+        if (point === null) return fail('A point is required.', NEEDS_POINT);
+        const sounding = await getSounding(http, {
+          ...point,
+          ...(input.hours_ahead === undefined ? {} : { hoursAhead: input.hours_ahead }),
+        });
+        return ok({
+          summary: soundingSummary(sounding),
+          data: {
+            sounding,
+            ...(input.bbox !== undefined && input.lat === undefined
+              ? { note: 'A bbox was given; its centre was used as the point.' }
+              : {}),
+          },
+          attributions: [sounding.attribution],
+          safetyNotice: true,
         });
       }),
   );

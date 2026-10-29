@@ -9,7 +9,7 @@ is needed: every source in this phase is free and open.
 
 ## Tools
 
-All ten are read-only (`readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: true`) and
+All eleven are read-only (`readOnlyHint: true`, `destructiveHint: false`, `openWorldHint: true`) and
 return both a text mirror and `structuredContent`, so clients that do not support structured
 results still get a usable answer.
 
@@ -23,6 +23,7 @@ results still get a usable answer.
 | `nimbai_get_radar_latest` | `lat`+`lon` or `bbox` | `image`, `sites[]`, `coverage`, `gaps[]` |
 | `nimbai_get_imagery_loop` | `layer` + a place | `frames[]` (chronological, ≤24), `coverage` |
 | `nimbai_get_lightning` | `lat`+`lon` or `bbox` | `image` or `null`, `caveat`, `coverage`, `gaps[]` |
+| `nimbai_get_sounding` | `lat`+`lon` or `bbox` | `sounding` with `levels[]`, `thermodynamics`, `kinematics`, `model`, `gaps[]` |
 | `nimbai_get_severe_risk` | `lat`+`lon` or `bbox` | `items[]` by risk kind, `coverage`, `gaps[]` |
 | `nimbai_get_sources_status` | — | `statuses[]` with reachability and typical latency |
 
@@ -40,7 +41,14 @@ coverage returns `coverage` and `gaps[]` saying so, and this phase in particular
 - **The global "favourable environment" layer (STP/SCP) does not exist yet.** Severe risk is
   limited to official warnings and official outlooks where the authority publishes them.
 - **Radar is not global.** No free, commercially usable global radar mosaic exists; see
-  `ATTRIBUTIONS.md`.
+  `ATTRIBUTIONS.md`. Where NimbAI knows who does operate radar over a point it cannot serve
+  (Argentina: SMN/SINARAME and OHMC; Brazil: REDEMET/DECEA), the error names that service so the
+  user can open it themselves. NimbAI does not serve their imagery: none of them publishes terms
+  that permit it.
+- **The sounding is a model sounding.** No radiosonde is launched. `nimbai_get_sounding` keeps the
+  model's own CAPE/CIN/LI in `model` and what NimbAI computed from the ~19 reported levels in
+  `thermodynamics`/`kinematics`; the two differ and neither corrects the other. Composite indices
+  (STP, SCP, SHIP) are absent because they have no validated Southern Hemisphere formulation.
 - An absent alert is not an absent risk, and the tools say so rather than implying all-clear.
 
 ## Install

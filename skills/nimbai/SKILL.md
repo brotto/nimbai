@@ -19,7 +19,11 @@ Qualquer pergunta sobre tempo/clima atual, previsão, radar, satélite, raios, a
 3. Se houver alerta ativo: `nimbai_get_alerts` e **reproduza o texto oficial íntegro** (fonte, hora de emissão e expiração, link). Nunca resuma de forma que mude o sentido.
 4. Para "como está agora" visual: `nimbai_get_radar_latest` (chuva/tempestade) ou `nimbai_get_satellite_latest` (nuvens). Para evolução: `nimbai_get_imagery_loop` (até 24 quadros).
 5. Raios: `nimbai_get_lightning(location, minutes)` — são detecções por satélite (GLM) ou rede terrestre conforme `source`; diga qual.
-6. Tempo severo/tornado: `nimbai_get_severe_risk` — distinga sempre (a) aviso oficial ativo, (b) ambiente favorável (índice STP/SCP, é previsão, não aviso), (c) sinal de radar.
+6. Perfil vertical / Skew-T: `nimbai_get_sounding` — sondagem **de modelo** (sem balão). Diga de qual
+   família é o número que você citar: `model` (o modelo calculou) ou `thermodynamics`/`kinematics`
+   (o NimbAI calculou do perfil). No Hemisfério Sul a supercélula ciclônica é o movedor da
+   **esquerda** e o sinal da helicidade inverte — leia `kinematics.signConvention`.
+7. Tempo severo/tornado: `nimbai_get_severe_risk` — distinga sempre (a) aviso oficial ativo, (b) ambiente favorável (índice STP/SCP, é previsão, não aviso), (c) sinal de radar.
 
 ## Como ler uma imagem
 Cada imagem vem com `valid_time` (UTC), `bbox` [oeste, sul, leste, norte], `layer`, `source`, `attribution` e `legend`. Converta `valid_time` para o fuso do usuário e diga há quantos minutos foi gerada. Se `source_latency_min` for alto, avise que a imagem pode estar atrasada.
