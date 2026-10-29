@@ -298,8 +298,48 @@ export function selectRadarTarget(aoi: Aoi): { target: RadarTarget; sites: Radar
     `No US radar coverage for (${aoi.lat.toFixed(2)}, ${aoi.lon.toFixed(2)}).`,
     undefined,
     'NimbAI radar is limited to NWS NEXRAD (continental US, Alaska, Hawaii, Puerto Rico). ' +
-      'Use satellite imagery for this location, or your national weather service radar.',
+      `Use nimbai_get_satellite_latest for this location.${nationalRadarPointer(aoi.lat, aoi.lon)}`,
   );
+}
+
+/**
+ * Who does operate radar over a point NimbAI cannot serve.
+ *
+ * Telling a user "no coverage" when a radar is in fact scanning their city is
+ * a half-truth. NimbAI cannot serve those images — the operators below either
+ * publish no licence or block automated access entirely, and this project
+ * does not redistribute data it has no permission for — but naming the
+ * service and letting a person open it themselves costs nothing and is the
+ * honest answer. See `wiki/research/radar-argentina-sinarame.md`.
+ */
+const NATIONAL_RADAR: readonly { bbox: Bbox; text: string }[] = [
+  {
+    // Argentina, Uruguay, Paraguay and the southern Brazilian border: the
+    // SINARAME and INTA radars reach here, and nothing of NimbAI's does.
+    bbox: [-74, -56, -52, -20],
+    text:
+      ' A radar may cover this area, operated by others: the Servicio Meteorológico Nacional ' +
+      'of Argentina (SINARAME/INTA network, https://www.smn.gob.ar) and, for Córdoba, the ' +
+      'Observatorio Hidrometeorológico de Córdoba (https://webmet.ohmc.ar). Tell the user to ' +
+      'open one of those directly; NimbAI has no licence to serve their imagery.',
+  },
+  {
+    // Brazil: DECEA publishes the aeronautical radar mosaic.
+    bbox: [-74, -34, -33, 6],
+    text:
+      ' A radar may cover this area, operated by others: REDEMET/DECEA publishes Brazilian radar ' +
+      'at https://redemet.decea.mil.br. Tell the user to open it directly; NimbAI has no licence ' +
+      'to serve that imagery.',
+  },
+];
+
+export function nationalRadarPointer(lat: number, lon: number): string {
+  // All matches, not the first: the boxes overlap along the Brazil-Argentina
+  // border, which is exactly where both networks matter.
+  const matches = NATIONAL_RADAR.filter((r) => bboxContains(r.bbox, lat, lon));
+  return matches.length === 0
+    ? ' Otherwise use your national weather service radar.'
+    : matches.map((m) => m.text).join('');
 }
 
 export function ridgeUrl(id: string, index: number): string {

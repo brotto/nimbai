@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { HttpClient, assertAllowed } from '../http.js';
 import { ImageRefSchema } from '../types.js';
-import { RADAR_SITES, getRadarLatest, radarFrames, selectRadarTarget } from './radar.js';
+import {
+  RADAR_SITES,
+  getRadarLatest,
+  nationalRadarPointer,
+  radarFrames,
+  selectRadarTarget,
+} from './radar.js';
 import { resolveAoi } from './satellite.js';
 
 const http = new HttpClient({
@@ -96,5 +102,32 @@ describe('radarFrames', () => {
       'WS_1.gif',
       'WS_0.gif',
     ]);
+  });
+});
+
+describe('nationalRadarPointer', () => {
+  it('names the operator that does cover the point, instead of implying nobody does', () => {
+    // Foz do Iguaçu sits where both networks matter, so both are named.
+    const foz = nationalRadarPointer(-25.54, -54.58);
+    expect(foz).toContain('Servicio Meteorológico Nacional');
+    // "may cover", never "does": the box spans Patagonia and open ocean too.
+    expect(foz).not.toContain('does cover');
+    expect(foz).toContain('REDEMET');
+    expect(foz).toContain('no licence to serve');
+
+    expect(nationalRadarPointer(-31.4, -64.2)).toContain('webmet.ohmc.ar');
+    expect(nationalRadarPointer(-3.1, -60.0)).toContain('redemet.decea.mil.br');
+  });
+
+  it('falls back to a generic pointer where NimbAI knows of no operator', () => {
+    expect(nationalRadarPointer(48.1, 11.5)).toBe(
+      ' Otherwise use your national weather service radar.',
+    );
+  });
+
+  it('reaches the user through the error a no-coverage point throws', async () => {
+    await expect(getRadarLatest(http, { lat: -25.54, lon: -54.58 })).rejects.toMatchObject({
+      nextSteps: expect.stringContaining('smn.gob.ar'),
+    });
   });
 });
