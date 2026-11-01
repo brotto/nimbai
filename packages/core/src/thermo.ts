@@ -496,7 +496,20 @@ export function windAt(profile: readonly WindLevel[], heightAglM: number): Wind 
 }
 
 /**
- * Mean wind over a layer, sampled every 100 m.
+ * Mean wind over a layer: the depth-weighted average, (1/Δz) ∫ V dz,
+ * integrated by trapezoid over 100 m steps.
+ *
+ * It is an integral, not a mean of samples. Averaging the samples instead
+ * gives the endpoints a full share each when the integral gives them half,
+ * which on a real sounding moves the 0-6 km mean by a few cm/s and drags
+ * every Bunkers motion derived from it along. Resampling to even steps first
+ * is what keeps an unevenly spaced profile from weighting its crowded levels
+ * more heavily than its sparse ones.
+ *
+ * Height, not pressure, is the weight: Bunkers et al. (2000) specify a
+ * non-pressure-weighted mean. MetPy's `bunkers_storm_motion` integrates in
+ * pressure instead, which is why its storm motion sits about 0.9 m/s from
+ * ours on the same profile.
  *
  * The bottom is raised to the lowest level the profile actually has, which is
  * the anemometer height rather than the ground: starting at 0 would silently
@@ -513,17 +526,25 @@ export function meanWind(
   const base = Math.max(bottomM, profile[0]?.heightAglM ?? bottomM);
   const ceiling = profile[profile.length - 1]?.heightAglM;
   if (ceiling === undefined || base > topM || ceiling < topM) return null;
+  let previous = windAt(profile, base);
+  if (previous === null) return null;
   let u = 0;
   let v = 0;
-  let n = 0;
-  for (let z = base; z <= topM; z += 100) {
-    const w = windAt(profile, z);
-    if (w === null) continue;
-    u += w.u;
-    v += w.v;
-    n += 1;
+  let z = base;
+  while (z < topM) {
+    // The last step is short whenever the layer depth is not a whole number
+    // of steps, so the integral reaches topM exactly instead of stopping below it.
+    const next = Math.min(z + 100, topM);
+    const w = windAt(profile, next);
+    if (w === null) return null;
+    const dz = next - z;
+    u += ((previous.u + w.u) / 2) * dz;
+    v += ((previous.v + w.v) / 2) * dz;
+    previous = w;
+    z = next;
   }
-  return n === 0 ? null : { u: u / n, v: v / n };
+  const depth = z - base;
+  return depth === 0 ? null : { u: u / depth, v: v / depth };
 }
 
 /** Vector wind difference across a layer. Its magnitude is the bulk shear. */
@@ -592,7 +613,8 @@ export function hemisphereOf(lat: number): Hemisphere {
  * the Coriolis parameter changes sign and the mirror image holds: the
  * cyclonic, mesocyclone-bearing supercell is the LEFT mover. Applying the
  * Northern convention to Brazil would point every tornado parameter at the
- * wrong storm. See `wiki/decisions/2026-10-28-parametros-hemisferio-sul.md`.
+ * wrong storm. The convention and what has been done to check it are
+ * recorded in `docs/hemisferio-sul.md`.
  */
 export function cyclonicMover(hemisphere: Hemisphere): 'right' | 'left' {
   return hemisphere === 'northern' ? 'right' : 'left';

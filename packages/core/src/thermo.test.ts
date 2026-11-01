@@ -26,6 +26,7 @@ import {
   windComponents,
   windFromComponents,
   type EnvLevel,
+  type Wind,
   type WindLevel,
 } from './thermo.js';
 
@@ -665,5 +666,196 @@ describe('sampleEnvironment', () => {
     expect(sampleEnvironment(env, 950)?.temperatureC).toBeCloseTo(1.49, 1);
     expect(sampleEnvironment(env, 1010)).toBeNull();
     expect(sampleEnvironment(env, 700)).toBeNull();
+  });
+});
+
+/**
+ * The 1999-05-04 00Z Norman (OUN) wind profile, the sounding MetPy ships as
+ * `may4_sounding.txt`: the Bridge Creek-Moore F5 environment, Northern
+ * Hemisphere, strongly sheared. Heights are AGL (the station sits at 345 m);
+ * components are metres per second. The point of keeping it here is that the
+ * numbers below were handed to MetPy 1.7.1 unchanged, so the expectations in
+ * these tests are an outside implementation's answers, not our own.
+ */
+const OUN_19990504: WindLevel[] = [
+  { heightAglM: 0.0, u: -3.167107, v: 8.701554 },
+  { heightAglM: 265.0, u: -5.325921, v: 19.876607 },
+  { heightAglM: 326.0, u: -5.059625, v: 18.882777 },
+  { heightAglM: 569.0, u: -1.748635, v: 19.986986 },
+  { heightAglM: 639.0, u: -0.7002, v: 20.051111 },
+  { heightAglM: 874.0, u: 3.394629, v: 19.251897 },
+  { heightAglM: 1052.0, u: 5.059625, v: 18.882777 },
+  { heightAglM: 1421.0, u: 7.742006, v: 17.38883 },
+  { heightAglM: 1484.0, u: 8.044304, v: 17.251065 },
+  { heightAglM: 1674.0, u: 10.598339, v: 17.638598 },
+  { heightAglM: 1789.0, u: 12.393075, v: 17.699145 },
+  { heightAglM: 2093.0, u: 12.393075, v: 17.699145 },
+  { heightAglM: 2398.0, u: 13.227141, v: 15.763492 },
+  { heightAglM: 2683.0, u: 12.235105, v: 14.58123 },
+  { heightAglM: 3223.0, u: 12.235105, v: 14.58123 },
+  { heightAglM: 3313.0, u: 12.235105, v: 14.58123 },
+  { heightAglM: 3922.0, u: 14.186919, v: 14.186919 },
+  { heightAglM: 4532.0, u: 12.565784, v: 14.975318 },
+  { heightAglM: 4598.0, u: 12.565784, v: 14.975318 },
+  { heightAglM: 5325.0, u: 13.095618, v: 13.095618 },
+  { heightAglM: 5751.0, u: 18.120553, v: 12.688148 },
+  { heightAglM: 6135.0, u: 17.699145, v: 12.393075 },
+  { heightAglM: 6985.0, u: 16.856329, v: 11.802928 },
+  { heightAglM: 7275.0, u: 16.856329, v: 11.802928 },
+  { heightAglM: 8189.0, u: 19.806186, v: 13.868441 },
+  { heightAglM: 8494.0, u: 16.03879, v: 9.26 },
+  { heightAglM: 8799.0, u: 16.484312, v: 9.517222 },
+  { heightAglM: 8985.0, u: 17.71731, v: 8.261717 },
+  { heightAglM: 9704.0, u: 34.035885, v: 15.871194 },
+  { heightAglM: 9713.0, u: 33.839375, v: 12.316525 },
+];
+
+describe('cross-validation against MetPy 1.7.1', () => {
+  it('matches MetPy storm-relative helicity when both are given the same storm motion', () => {
+    // MetPy's own Bunkers right mover for this profile. Fixing the motion is
+    // what isolates the helicity integral from the mean-wind question below.
+    const motion = { u: 8.029749, v: 8.532271 };
+    // Agreement is stated as a relative difference rather than decimal places
+    // because that is the honest claim: the two discretise the same integral
+    // differently, so they land within a tenth of a percent, not on the same
+    // digits. Values from metpy.calc.storm_relative_helicity.
+    for (const [depth, metpy] of [
+      [1000, 227.4816],
+      [3000, 311.6735],
+    ] as const) {
+      const ours = stormRelativeHelicity(OUN_19990504, motion, depth) as number;
+      expect(Math.abs(ours - metpy) / metpy).toBeLessThan(0.001);
+    }
+  });
+
+  it('matches MetPy bulk shear', () => {
+    // Magnitudes of metpy.calc.bulk_shear: hypot(7.736730, 10.289854) and
+    // hypot(21.016866, 3.796982). Stated as a relative difference for the
+    // same reason as above — writing a decimal tolerance that happens to
+    // straddle both numbers would hide how close they actually are.
+    for (const [depth, metpy] of [
+      [1000, 12.87393],
+      [6000, 21.3571],
+    ] as const) {
+      const ours = bulkShear(OUN_19990504, 0, depth)?.magnitudeMs as number;
+      expect(Math.abs(ours - metpy) / metpy).toBeLessThan(0.001);
+    }
+  });
+
+  it('departs from MetPy on the mean wind, because MetPy weights it by pressure', () => {
+    // Bunkers et al. (2000) specify a NON-pressure-weighted 0-6 km mean, and
+    // MetPy's own docstring says so, but its code integrates in pressure
+    // (weighted_continuous_average divides by the pressure span). Verified
+    // numerically on this profile: trapezoid in pressure gives (9.3905,
+    // 15.9088), reproducing MetPy's (9.3949, 15.9070); trapezoid in height
+    // over the native levels gives (10.1945, 15.6171). We integrate in height
+    // on a 100 m grid, which lands a further 0.009 m/s away at (10.1965,
+    // 15.6085) — the grid is not the exact integral of a piecewise-linear
+    // profile, since the reported levels fall between its nodes.
+    const mean = meanWind(OUN_19990504, 0, 6000);
+    expect(mean?.u).toBeCloseTo(10.1965, 3);
+    expect(mean?.v).toBeCloseTo(15.6085, 3);
+    // v is what guards the integration: averaging the samples instead, as
+    // this did before, gives 15.5264 and would fail here. u barely moves
+    // between the two (10.1496 vs 10.1965), so it cannot catch that regression.
+    expect(mean?.v).not.toBeCloseTo(15.5264, 2);
+  });
+});
+
+describe('hemisphere symmetry', () => {
+  // Reflecting a profile across the equator flips the north-south axis and
+  // leaves east-west alone, so a cyclonic Northern Hemisphere supercell maps
+  // onto a cyclonic Southern Hemisphere one. Every hemisphere rule we apply
+  // has to survive that reflection exactly; this is the test the ADR's
+  // convention actually stands on.
+  const mirrored: WindLevel[] = OUN_19990504.map((l) => ({ ...l, v: -l.v }));
+
+  it('calls the right mover cyclonic in the north and the left mover cyclonic in the south', () => {
+    expect(cyclonicMover(hemisphereOf(35.2))).toBe('right');
+    expect(cyclonicMover(hemisphereOf(-35.2))).toBe('left');
+  });
+
+  it('makes the southern left mover the mirror image of the northern right mover', () => {
+    const north = bunkersStormMotion(OUN_19990504);
+    const south = bunkersStormMotion(mirrored);
+    expect(south?.left.u).toBeCloseTo(north?.right.u as number, 6);
+    expect(south?.left.v).toBeCloseTo(-(north?.right.v as number), 6);
+  });
+
+  it('gives the cyclonic mover equal and opposite helicity in the two hemispheres', () => {
+    const north = bunkersStormMotion(OUN_19990504);
+    const south = bunkersStormMotion(mirrored);
+    for (const depth of [1000, 3000]) {
+      const n = stormRelativeHelicity(OUN_19990504, north?.right as Wind, depth) as number;
+      const s = stormRelativeHelicity(mirrored, south?.left as Wind, depth) as number;
+      // Equal and opposite: exactly why the reported value is sign-flipped
+      // south of the equator, so that "large and positive" means one thing.
+      expect(n + s).toBeCloseTo(0, 6);
+      expect(n).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps the cyclonic mover the favoured one after the reflection', () => {
+    // Reflection symmetry alone cannot tell a correct Bunkers deviation from
+    // one rotated the wrong way: both movers swap and the sums still cancel.
+    // What distinguishes them is which mover the hodograph actually favours.
+    // On this cyclonically curved northern profile it is the right mover, so
+    // on its mirror it must be the left one, by a wide margin either way.
+    const south = bunkersStormMotion(mirrored);
+    for (const depth of [1000, 3000]) {
+      const cyclonic = Math.abs(
+        stormRelativeHelicity(mirrored, south?.left as Wind, depth) as number,
+      );
+      const other = Math.abs(
+        stormRelativeHelicity(mirrored, south?.right as Wind, depth) as number,
+      );
+      expect(cyclonic).toBeGreaterThan(other);
+    }
+  });
+});
+
+describe('Bunkers deviation direction', () => {
+  // The review that followed the MetPy cross-check found the symmetry tests
+  // above blind to the sign of the deviation: flipping it swaps the two
+  // movers and every mirror identity still holds. These values do not. On
+  // the OUN hodograph the clockwise-deviating right mover carries far more
+  // helicity than the left, and swapping them swaps these two numbers.
+  it('puts the larger helicity on the right mover for a northern cyclonic hodograph', () => {
+    const motions = bunkersStormMotion(OUN_19990504);
+    expect(stormRelativeHelicity(OUN_19990504, motions?.right as Wind, 1000)).toBeCloseTo(
+      238.57,
+      1,
+    );
+    expect(stormRelativeHelicity(OUN_19990504, motions?.left as Wind, 1000)).toBeCloseTo(151.56, 1);
+    expect(stormRelativeHelicity(OUN_19990504, motions?.right as Wind, 3000)).toBeCloseTo(
+      321.35,
+      1,
+    );
+    expect(stormRelativeHelicity(OUN_19990504, motions?.left as Wind, 3000)).toBeCloseTo(109.53, 1);
+  });
+});
+
+describe('meanWind as an integral', () => {
+  // u grows exactly as the height in metres, so the depth-weighted mean of
+  // any layer is its midpoint and every case below has an answer worked out
+  // on paper rather than read off the implementation.
+  const ramp: WindLevel[] = [
+    { heightAglM: 0, u: 0, v: 0 },
+    { heightAglM: 6000, u: 6000, v: 0 },
+  ];
+
+  it('returns the midpoint of a layer whose depth is a whole number of steps', () => {
+    expect(meanWind(ramp, 0, 6000)?.u).toBeCloseTo(3000, 9);
+    expect(meanWind(ramp, 5500, 6000)?.u).toBeCloseTo(5750, 9);
+  });
+
+  it('reaches the top exactly when the depth is not a whole number of steps', () => {
+    // 4550 m is 45 full steps and a 50 m remainder. Stopping at 4500 would
+    // give 2250, and weighting the short step as a full one would give more.
+    expect(meanWind(ramp, 0, 4550)?.u).toBeCloseTo(2275, 9);
+  });
+
+  it('handles a layer shallower than one step', () => {
+    expect(meanWind(ramp, 0, 50)?.u).toBeCloseTo(25, 9);
   });
 });

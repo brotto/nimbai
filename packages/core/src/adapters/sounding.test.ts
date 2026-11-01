@@ -198,8 +198,8 @@ describe('getSounding - derived parameters', () => {
 
   it('reports SRH and shear to pinned values', async () => {
     const s = await getSounding(clientWith([fixture(FOZ)]), POINT);
-    expect(s.kinematics.srh0to3kmM2S2 as number).toBeCloseTo(41.71, 1);
-    expect(s.kinematics.srh0to3kmRawM2S2 as number).toBeCloseTo(-41.71, 1);
+    expect(s.kinematics.srh0to3kmM2S2 as number).toBeCloseTo(41.6, 1);
+    expect(s.kinematics.srh0to3kmRawM2S2 as number).toBeCloseTo(-41.6, 1);
     expect(s.kinematics.bulkShear0to6kmMs as number).toBeCloseTo(16.63, 1);
   });
 });
