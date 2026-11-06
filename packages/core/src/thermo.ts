@@ -629,6 +629,10 @@ export function cyclonicMover(hemisphere: Hemisphere): 'right' | 'left' {
  * situation yields a negative one. Callers that want "positive means
  * favourable" must flip the sign south of the equator; this function does not
  * do it for them, so the raw physical quantity stays available.
+ *
+ * A profile that does not reach `topM` gives null, not the integral over the
+ * part it does cover: a number labelled 0-3 km that only spans 0-2 km reads as
+ * a weak environment instead of as missing data.
  */
 export function stormRelativeHelicity(
   profile: readonly WindLevel[],
@@ -636,6 +640,8 @@ export function stormRelativeHelicity(
   topM: number,
   bottomM = 0,
 ): number | null {
+  const ceiling = profile[profile.length - 1]?.heightAglM;
+  if (ceiling === undefined || ceiling < topM) return null;
   let total = 0;
   let counted = 0;
   const base = Math.max(bottomM, profile[0]?.heightAglM ?? bottomM);

@@ -438,6 +438,7 @@ export async function getSounding(
     });
   }
   windProfile.sort((a, b) => a.heightAglM - b.heightAglM);
+  const windCeilingM = windProfile[windProfile.length - 1]?.heightAglM ?? null;
 
   const motions = bunkersStormMotion(windProfile);
   const mover = cyclonicMover(hemisphere);
@@ -485,6 +486,15 @@ export async function getSounding(
 
   if (windProfile.length < 3) {
     gaps.push('Too few wind levels to compute storm motion or helicity for this point.');
+  } else if (windCeilingM !== null && windCeilingM < 6000) {
+    // Without this the whole of the kinematics comes back null and the reader
+    // has no way to tell a missing profile from a benign environment.
+    gaps.push(
+      `The wind profile ends at ${Math.floor(windCeilingM)} m above ground, and the Bunkers ` +
+        'method needs 6 km. Storm motion and both helicity layers are null for that reason ' +
+        'alone, not because the environment is unfavourable. Any bulk shear layer still ' +
+        'reported below is unaffected by this.',
+    );
   }
 
   gaps.push(

@@ -835,6 +835,22 @@ describe('Bunkers deviation direction', () => {
   });
 });
 
+describe('stormRelativeHelicity on a profile that stops short', () => {
+  it('returns null instead of the part of the layer it can cover', () => {
+    const short = OUN_19990504.filter((l) => l.heightAglM <= 2000);
+    const ceiling = short[short.length - 1]?.heightAglM as number;
+    expect(ceiling).toBeLessThan(3000);
+    const motion: Wind = { u: 0, v: 0 };
+
+    // A partial integral labelled 0-3 km reads as a weak environment, which is
+    // the one thing a missing profile must not look like.
+    expect(stormRelativeHelicity(short, motion, 3000)).toBeNull();
+    expect(stormRelativeHelicity(short, motion, 1000)).not.toBeNull();
+    // Exactly at the ceiling is still covered, so it is still answered.
+    expect(stormRelativeHelicity(short, motion, ceiling)).not.toBeNull();
+  });
+});
+
 describe('meanWind as an integral', () => {
   // u grows exactly as the height in metres, so the depth-weighted mean of
   // any layer is its midpoint and every case below has an answer worked out

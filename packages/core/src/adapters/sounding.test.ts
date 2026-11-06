@@ -261,6 +261,33 @@ describe('getSounding - honesty', () => {
     expect(s.attribution.source).toBe('open-meteo');
   });
 
+  it('says why the kinematics are null when the wind profile stops below 6 km', async () => {
+    // The same fixture with the winds above 500 hPa removed. There are still
+    // plenty of levels; the wind profile just ends at 5626 m AGL. Every
+    // Bunkers and helicity field used to come back null with nothing in
+    // `gaps` to tell that apart from a calm, benign environment.
+    const body = JSON.parse(fixture(FOZ)) as { hourly: Record<string, unknown> };
+    for (const hPa of [400, 300, 250, 200, 150, 100, 70, 50, 30]) {
+      body.hourly[`wind_speed_${hPa}hPa`] = [null];
+      body.hourly[`wind_direction_${hPa}hPa`] = [null];
+    }
+    const s = await getSounding(clientWith([JSON.stringify(body)]), POINT);
+
+    expect(s.kinematics.bunkersLeft).toBeNull();
+    expect(s.kinematics.meanWind0to6km).toBeNull();
+    expect(s.kinematics.srh0to1kmM2S2).toBeNull();
+    expect(s.kinematics.srh0to3kmM2S2).toBeNull();
+    expect(s.kinematics.bulkShear0to6kmMs).toBeNull();
+    // What the profile does cover is still reported.
+    expect(s.kinematics.bulkShear0to3kmMs).not.toBeNull();
+
+    const gaps = s.gaps.join(' ');
+    expect(gaps).toContain('wind profile ends at 5626 m above ground');
+    expect(gaps).toContain('not because the environment is unfavourable');
+    // Floored, not rounded: a ceiling of 5999.6 m must not print as "6000 m".
+    expect(gaps).not.toContain('ends at 6000 m');
+  });
+
   it('says so instead of inventing a parcel when no level is above the ground', async () => {
     // Every reported level is at a higher pressure than the ground, so the
     // underground filter — not a missing payload — empties the profile.
