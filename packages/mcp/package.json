@@ -19,7 +19,7 @@
     "dev": "tsx src/bin/stdio.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.3.1",
+    "@modelcontextprotocol/server": "^2.4.0",
     "@nimbai/core": "workspace:*",
     "zod": "^4.6.7"
   }
