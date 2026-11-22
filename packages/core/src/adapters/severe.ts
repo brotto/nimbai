@@ -184,10 +184,18 @@ function upcomingAlertToRisk(alert: Alert): RiskItem {
   // `validFrom` stays exactly as published (INMET stamps carry no zone), so the
   // zone goes into the label: it travels with the item when one is copied out
   // of the response, where the coverage sentence does not.
-  const start =
-    alert.attribution.source === 'inmet' && alert.onset !== undefined
-      ? `; início ${alert.onset} horário de Brasília (UTC-3)`
-      : '';
+  let start = '';
+  if (alert.onset !== undefined) {
+    // `sanitizeExternalText` keeps newlines so official text keeps its
+    // paragraphs. A label is one line, so collapse whitespace here too.
+    const published = sanitizeExternalText(alert.onset, 40).replace(/\s+/g, ' ').trim();
+    if (published !== '') {
+      start =
+        alert.attribution.source === 'inmet'
+          ? `; início ${published} horário de Brasília (UTC-3)`
+          : `; início ${published}`;
+    }
+  }
   item.label = `[AINDA NÃO EM VIGOR${start}] ${item.label}`;
   return item;
 }
@@ -215,7 +223,8 @@ export async function getSevereRisk(
   /**
    * Convective official warnings whose validity window has NOT begun yet.
    * Kept out of `items` on purpose: nothing here is in force. Sorted by start
-   * time. Only INMET contributes; an empty list is not "nothing is coming".
+   * time. Both NWS (by `onset`, else `effective`) and INMET contribute; an empty
+   * list is not "nothing is coming".
    */
   upcoming: RiskItem[];
   coverage: string;
@@ -267,7 +276,7 @@ export async function getSevereRisk(
       );
       if (
         warnRes.r.alerts.some((a) => a.attribution.source === 'inmet') ||
-        convectiveUpcoming.length > 0
+        convectiveUpcoming.some((a) => a.attribution.source === 'inmet')
       ) {
         gaps.push(
           'Avisos do INMET são casados por polígono aproximado; a área oficial é por município e o município do ponto não foi resolvido.',

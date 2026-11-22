@@ -10,15 +10,15 @@ alternativa; quando só o `bbox` é dado, o centro dele é usado como ponto.
 | Tool | Entrada mínima | Campos-chave da saída |
 |---|---|---|
 | `nimbai_search_location` | `query`, ou `lat`+`lon` | `candidates[] {id, name, admin, country, countryCode, lat, lon, timezone, population}` |
-| `nimbai_get_summary` | ponto ou `bbox` (+ `detail`) | `current`, `forecast`, `alerts[]`, `alerts_coverage` |
+| `nimbai_get_summary` | ponto ou `bbox` (+ `detail`) | `current`, `forecast`, `alerts[]`, `alerts_upcoming[]`, `alerts_coverage` |
 | `nimbai_get_forecast` | ponto ou `bbox` (+ `hours` ou `days`) | `forecast {model, run, times[], variables{nome:{unit, values[]}}}` |
-| `nimbai_get_alerts` | ponto ou `bbox` (+ `severity[]`) | `alerts[] {event, severity, urgency, certainty, tags[], areaDescription, onset, expires, text, url}`, `coverage` |
+| `nimbai_get_alerts` | ponto ou `bbox` (+ `severity[]`) | `alerts[] {event, severity, urgency, certainty, tags[], areaDescription, onset, expires, text, url}`, `upcoming[]` (mesmos campos), `coverage`, `consulted[]` |
 | `nimbai_get_satellite_latest` | ponto ou `bbox` (+ `product`) | `image`, `satellite`, `coverage` |
 | `nimbai_get_radar_latest` | ponto ou `bbox` | `image`, `sites[] {id, name, lat, lon, rangeKm}`, `coverage`, `gaps[]` |
 | `nimbai_get_imagery_loop` | `layer` + ponto ou `bbox` (+ `frames`) | `frames[]` (cronológico, ≤24), `coverage` |
 | `nimbai_get_lightning` | ponto ou `bbox` (+ `minutes`) | `image` **ou `null`**, `caveat`, `coverage`, `gaps[]` |
 | `nimbai_get_sounding` | ponto ou `bbox` (+ `hours_ahead`) | `sounding {validTime, levels[], thermodynamics, kinematics, model, gaps[]}` |
-| `nimbai_get_severe_risk` | ponto ou `bbox` | `items[] {kind, label, detail, probability, validFrom, validTo, url}`, `coverage`, `gaps[]` |
+| `nimbai_get_severe_risk` | ponto ou `bbox` | `items[] {kind, label, detail, probability, validFrom, validTo, url}`, `upcoming[]` (mesmos campos), `coverage`, `gaps[]`, `warnings` |
 | `nimbai_get_sources_status` | — | `statuses[] {source, ok, latencyMs, typicalLatencyMin, note}`, `checkedAt` |
 
 ## `image` (todo `ImageRef`)
@@ -97,8 +97,15 @@ duas curvas é o CAPE.
 - **Brasil**: não existe aviso oficial de **tornado** por polígono. Os avisos do INMET trazem um
   `poligono`, mas é um envelope aproximado: a área oficial é a lista de municípios, e o servidor não
   resolve em qual município o ponto está. Um aviso listado pode não valer para o local exato, e estar
-  fora do polígono não garante ausência de aviso. Só avisos **em vigor agora** são listados; os de
-  início futuro são contados no `coverage`, não na lista.
+  fora do polígono não garante ausência de aviso.
+- **Avisos que ainda não começaram** (NWS e INMET): vêm em `upcoming` (`alerts_upcoming` no
+  `nimbai_get_summary`), nunca em `alerts`/`items`. Não estão em vigor: apresente-os como "vem
+  aí", jamais como ativos, e não os some à contagem dos ativos. O início é `onset` no NWS (na falta
+  dele, ou se ilegível, `effective`) e `inicio` no INMET; em `nimbai_get_severe_risk` o rótulo começa por
+  `[AINDA NÃO EM VIGOR` e traz `; início …` só quando há início publicado legível. Fusos: um carimbo do NWS traz o próprio deslocamento (p.ex.
+  `-05:00`); o do INMET é horário de **Brasília** (UTC-3) sem marcador — não o leia como UTC. Um
+  alerta do NWS sem início legível fica em `alerts` (não se esconde aviso oficial), então confira o
+  texto dele. `upcoming` vazio **não** é "nada vem aí".
 - **Europa**: o feed do MeteoAlarm responde, mas identifica a área só por nome e código, sem
   geometria — não é possível dizer se um ponto está dentro de um aviso europeu. Nenhuma fonte de
   aviso europeia é consultada, e o `coverage` diz isso.

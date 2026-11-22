@@ -87,6 +87,14 @@ async function guard(fn: () => Promise<ToolResult>): Promise<ToolResult> {
 }
 
 /**
+ * Said only when an INMET warning is among those described: INMET areas are
+ * matched by an approximate polygon. An NWS point query is resolved to zones by
+ * NWS itself, so the caveat would misdescribe those matches.
+ */
+const INMET_POLYGON_CAVEAT =
+  ' (the INMET ones are matched by an approximate polygon and may not apply to the exact spot)';
+
+/**
  * An empty alert list means three different things depending on which sources
  * answered, and saying "no alert found" for all three is a false all-clear.
  * The sentence always names what was actually consulted.
@@ -94,7 +102,8 @@ async function guard(fn: () => Promise<ToolResult>): Promise<ToolResult> {
 export function alertSummary(
   count: number,
   consulted: ConsultedSource[],
-  upcomingCount = 0,
+  upcomingCount: number,
+  inmetUpcoming: boolean,
 ): string {
   const failed = consulted.filter((c) => c.state === 'failed').map((c) => c.source);
   const answered = consulted.filter((c) => c.state === 'ok').map((c) => c.source);
@@ -102,7 +111,7 @@ export function alertSummary(
   // those in force: "3 alerts" and "none yet, 3 coming" are different answers.
   const later =
     upcomingCount > 0
-      ? ` ${upcomingCount} official warning(s) matched to this area (approximate polygon, may not apply to the exact spot) start LATER and are NOT in force yet: see \`upcoming\`. Tell the user they are coming, not active.`
+      ? ` ${upcomingCount} official warning(s) matched to this area${inmetUpcoming ? INMET_POLYGON_CAVEAT : ''} start LATER and are NOT in force yet: see \`upcoming\`. Tell the user they are coming, not active.`
       : '';
   if (count > 0) {
     const base = `${count} active official alert(s). Reproduce the official text verbatim, with its source and time.${later}`;
@@ -300,7 +309,12 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
                 (alerts.upcoming.length > 0
                   ? ` ${alerts.upcoming.length} more start LATER and are NOT in force yet (see alerts_upcoming): ${alerts.upcoming.map((a) => a.event).join(', ')}.`
                   : '')
-              : alertSummary(0, alerts.consulted, alerts.upcoming.length);
+              : alertSummary(
+                  0,
+                  alerts.consulted,
+                  alerts.upcoming.length,
+                  alerts.upcoming.some((a) => a.attribution.source === 'inmet'),
+                );
 
         return ok({
           summary: `${conditionLine} ${alertLine}`,
@@ -369,8 +383,10 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         'Active official warnings and watches for a point or bbox, with the issuing authority’s ' +
         'text reproduced verbatim. Reproduce that text to the user without paraphrasing it, and ' +
         'read `coverage` — it says which countries this call actually checked. `upcoming` lists ' +
-        'warnings for the same place that start later (Brazil/INMET only): they are NOT in force, ' +
-        'so present them as coming, never as active.',
+        'warnings for the same place that start later (NWS by `onset`, else `effective`; INMET by ' +
+        '`inicio`): they are NOT in force, so present them as coming, never as active. An NWS alert ' +
+        'whose start cannot be read stays in `alerts`. An NWS timestamp carries its own UTC offset; ' +
+        'an INMET one is Brasília time (UTC-3) with no marker.',
       inputSchema: PlaceSchema.extend({
         severity: z.array(z.string()).optional().describe('Filter by official severity labels'),
       }),
@@ -393,7 +409,12 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
           ...(input.severity === undefined ? {} : { severity: input.severity }),
         });
         return ok({
-          summary: alertSummary(result.alerts.length, result.consulted, result.upcoming.length),
+          summary: alertSummary(
+            result.alerts.length,
+            result.consulted,
+            result.upcoming.length,
+            result.upcoming.some((a) => a.attribution.source === 'inmet'),
+          ),
           data: {
             alerts: result.alerts,
             // Warnings whose window has not begun: NOT in force.
@@ -566,8 +587,12 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         'Severe-weather risk for a point, split by kind: official_warning, official_outlook, ' +
         'favourable_environment and automated_guidance. These are NOT interchangeable — an ' +
         'environment favourable to tornadoes is a forecast of potential, never a warning. ' +
-        'Official warnings that have NOT started yet are returned separately in `upcoming` ' +
-        '(label "[AINDA NÃO EM VIGOR]"): they are not in force and never appear in `items`. ' +
+        'Official warnings (NWS and INMET) that have NOT started yet are returned separately in ' +
+        '`upcoming` (label starts "[AINDA NÃO EM VIGOR"): they are not in force and never appear in ' +
+        '`items`. When the source published a readable start, the label continues "; início …" and ' +
+        '`validFrom` carries it in the source’s own form: an NWS one with its UTC offset, an INMET ' +
+        'one as Brasília time (UTC-3) with no marker. An NWS alert with no readable published start ' +
+        'has a bare label and no `validFrom`. ' +
         'Always read `gaps`: it says what does not exist for that location.',
       inputSchema: PlaceSchema,
       annotations: READ_ONLY,
@@ -581,7 +606,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         const others = result.items.length - warnings.length;
         const laterNote =
           result.upcoming.length > 0
-            ? ` ${result.upcoming.length} more official warning(s) matched to this area (approximate polygon, may not apply to the exact spot) start LATER and are NOT in force yet: see \`upcoming\`.`
+            ? ` ${result.upcoming.length} more official warning(s) matched to this area${result.upcoming.some((i) => i.attribution.source === 'inmet') ? INMET_POLYGON_CAVEAT : ''} start LATER and are NOT in force yet: see \`upcoming\`.`
             : '';
         const summary =
           warnings.length > 0

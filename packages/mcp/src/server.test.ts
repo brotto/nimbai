@@ -116,35 +116,50 @@ describe('NimbAI MCP server', () => {
 
 describe('alertSummary — an empty list must never read as an all-clear', () => {
   it('names the failing source and refuses to call it clear', () => {
-    const text = alertSummary(0, [
-      { source: 'nws', state: 'failed', reason: 'boom' },
-      { source: 'inmet', state: 'outside' },
-    ]);
+    const text = alertSummary(
+      0,
+      [
+        { source: 'nws', state: 'failed', reason: 'boom' },
+        { source: 'inmet', state: 'outside' },
+      ],
+      0,
+      false,
+    );
     expect(text).toContain('FAILED');
     expect(text).toContain('NOT an all-clear');
     expect(text).not.toMatch(/^No active official alert/);
   });
 
   it('says no source covers the place when none was consulted', () => {
-    const text = alertSummary(0, [
-      { source: 'nws', state: 'outside' },
-      { source: 'inmet', state: 'outside' },
-    ]);
+    const text = alertSummary(
+      0,
+      [
+        { source: 'nws', state: 'outside' },
+        { source: 'inmet', state: 'outside' },
+      ],
+      0,
+      false,
+    );
     expect(text).toContain('No alert source covers this location');
     expect(text).toContain('national weather service');
   });
 
   it('reports a genuine empty result, still warning that risk may exist', () => {
-    const text = alertSummary(0, [
-      { source: 'nws', state: 'ok' },
-      { source: 'inmet', state: 'outside' },
-    ]);
+    const text = alertSummary(
+      0,
+      [
+        { source: 'nws', state: 'ok' },
+        { source: 'inmet', state: 'outside' },
+      ],
+      0,
+      false,
+    );
     expect(text).toContain('No active official alert from nws');
     expect(text).toContain('Absence of an alert is not absence of risk');
   });
 
   it('leads with the count and the verbatim rule when alerts exist', () => {
-    const text = alertSummary(2, [{ source: 'nws', state: 'ok' }]);
+    const text = alertSummary(2, [{ source: 'nws', state: 'ok' }], 0, false);
     expect(text).toContain('2 active official alert(s)');
     expect(text).toContain('verbatim');
   });
@@ -154,7 +169,7 @@ describe('alertSummary — warnings that have not begun are announced, never cou
   const inmetOk = [{ source: 'inmet' as const, state: 'ok' as const }];
 
   it('does not say "no alert" without mentioning the incoming ones', () => {
-    const text = alertSummary(0, inmetOk, 3);
+    const text = alertSummary(0, inmetOk, 3, true);
     expect(text).toContain('3 official warning(s)');
     expect(text).toContain('NOT in force yet');
     expect(text).toContain('`upcoming`');
@@ -162,21 +177,21 @@ describe('alertSummary — warnings that have not begun are announced, never cou
   });
 
   it('keeps the active count apart from the upcoming one', () => {
-    const text = alertSummary(1, inmetOk, 2);
+    const text = alertSummary(1, inmetOk, 2, true);
     expect(text).toContain('1 active official alert(s)');
     expect(text).toContain('2 official warning(s)');
     expect(text).not.toContain('3 active');
   });
 
   it('is unchanged when nothing is coming', () => {
-    expect(alertSummary(0, inmetOk)).toBe(
+    expect(alertSummary(0, inmetOk, 0, false)).toBe(
       'No active official alert from inmet. Absence of an alert is not absence of risk.',
     );
-    expect(alertSummary(0, inmetOk, 0)).not.toContain('LATER');
+    expect(alertSummary(0, inmetOk, 0, false)).not.toContain('LATER');
   });
 
   it('still refuses an all-clear when a source failed and warnings are incoming', () => {
-    const text = alertSummary(0, [{ source: 'nws', state: 'failed', reason: 'x' }], 1);
+    const text = alertSummary(0, [{ source: 'nws', state: 'failed', reason: 'x' }], 1, false);
     expect(text).toContain('NOT an all-clear');
     expect(text).toContain('LATER');
   });
@@ -500,5 +515,285 @@ describe('soundingSummary', () => {
     expect(text).toContain('No parcel could be lifted');
     expect(text).toContain('n/a');
     expect(text).not.toContain('0 J/kg');
+  });
+});
+
+describe('an NWS alert whose onset is in the future is announced as coming, not active', () => {
+  const feed = {
+    features: [
+      {
+        geometry: null,
+        properties: {
+          id: 'urn:oid:winter',
+          event: 'Winter Storm Warning',
+          severity: 'Severe',
+          status: 'Actual',
+          headline: 'Winter Storm Warning',
+          description: 'Heavy snow.',
+          onset: '2026-11-25T04:00:00-05:00',
+          effective: '2026-11-20T10:00:00-05:00',
+          ends: '2026-11-26T04:00:00-05:00',
+        },
+      },
+    ],
+  };
+  const fakeFetch: typeof globalThis.fetch = async (input) => {
+    if (String(input).includes('api.weather.gov/alerts/active')) {
+      return new Response(JSON.stringify(feed), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return new Response('nope', { status: 500 });
+  };
+  type R = {
+    isError?: boolean;
+    structuredContent?: {
+      alerts?: { id: string }[];
+      upcoming?: { id: string; onset?: string }[];
+      alerts_upcoming?: { id: string }[];
+    };
+    content?: { text?: string }[];
+  };
+
+  it('nimbai_get_alerts: `alerts` is empty, `upcoming` holds it, the headline says so', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-22T12:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const result = (await call('tools/call', {
+        name: 'nimbai_get_alerts',
+        arguments: { lat: 40.7, lon: -74 },
+      })) as R;
+      expect(result.isError).toBeFalsy();
+      const text = result.content?.map((c) => c.text ?? '').join('\n') ?? '';
+      expect(text).toContain('NOT in force yet');
+      expect(text).not.toMatch(/\d active official alert/);
+      expect(result.structuredContent?.alerts).toEqual([]);
+      expect(result.structuredContent?.upcoming?.map((a) => a.id)).toEqual(['urn:oid:winter']);
+      expect(result.structuredContent?.upcoming?.[0]?.onset).toBe('2026-11-25T04:00:00-05:00');
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+
+  it('nimbai_get_summary: it is in alerts_upcoming, not in alerts', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-22T12:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const result = (await call('tools/call', {
+        name: 'nimbai_get_summary',
+        arguments: { lat: 40.7, lon: -74 },
+      })) as R;
+      expect(result.structuredContent?.alerts).toEqual([]);
+      expect(result.structuredContent?.alerts_upcoming?.map((a) => a.id)).toEqual([
+        'urn:oid:winter',
+      ]);
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+
+  it('tool descriptions no longer say `upcoming` is Brazil-only, and name both time conventions', async () => {
+    const { call, close } = await session();
+    try {
+      const listed = (await call('tools/list')) as {
+        tools: { name: string; description?: string }[];
+      };
+      for (const name of ['nimbai_get_alerts', 'nimbai_get_severe_risk']) {
+        const d = listed.tools.find((t) => t.name === name)?.description ?? '';
+        expect(d).not.toContain('Brazil/INMET only');
+        expect(d).not.toContain('Only INMET');
+        expect(d).toContain('NWS');
+        expect(d).toContain('UTC offset');
+        expect(d).toContain('Brasília time (UTC-3) with no marker');
+      }
+    } finally {
+      await close();
+    }
+  });
+
+  it('the approximate-polygon caveat appears only when INMET is among the upcoming warnings', () => {
+    const consulted = [
+      { source: 'nws' as const, state: 'ok' as const },
+      { source: 'inmet' as const, state: 'ok' as const },
+    ];
+    const caveat = 'matched by an approximate polygon';
+    // INMET-only upcoming, NWS-only upcoming, both (the flag is true whenever any is INMET), neither.
+    expect(alertSummary(0, consulted, 2, true)).toContain(caveat);
+    expect(alertSummary(0, consulted, 2, false)).not.toContain(caveat);
+    expect(alertSummary(0, consulted, 0, false)).not.toContain(caveat);
+    expect(alertSummary(1, consulted, 2, true)).toContain(caveat);
+    expect(alertSummary(1, consulted, 2, false)).not.toContain(caveat);
+    expect(alertSummary(0, consulted, 0, true)).not.toContain('LATER');
+  });
+
+  it('an NWS-only result never mentions INMET polygons, in either tool', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-22T12:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const a = (await call('tools/call', {
+        name: 'nimbai_get_alerts',
+        arguments: { lat: 40.7, lon: -74 },
+      })) as R;
+      const sev = (await call('tools/call', {
+        name: 'nimbai_get_severe_risk',
+        arguments: { lat: 40.7, lon: -74 },
+      })) as R;
+      for (const r of [a, sev]) {
+        const text = r.content?.map((c) => c.text ?? '').join('\n') ?? '';
+        expect(text).not.toContain('approximate polygon');
+      }
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('the INMET polygon caveat tracks which sources contributed to `upcoming`', () => {
+  const polygon = JSON.stringify({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-55, -26],
+        [-54, -26],
+        [-54, -25],
+        [-55, -25],
+        [-55, -26],
+      ],
+    ],
+  });
+  const inmetFeed = {
+    hoje: [],
+    futuro: [
+      {
+        id: 5,
+        descricao: 'Tempestade',
+        severidade: 'Perigo',
+        inicio: '2026-11-23 06:00',
+        fim: '2026-11-23 23:59',
+        encerrado: false,
+        poligono: polygon,
+      },
+    ],
+  };
+  const nwsFeed = {
+    features: [
+      {
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [-78, 34],
+              [-76, 34],
+              [-76, 36],
+              [-78, 36],
+              [-78, 34],
+            ],
+          ],
+        },
+        properties: {
+          id: 'n1',
+          event: 'Tornado Watch',
+          severity: 'Severe',
+          status: 'Actual',
+          headline: 'Tornado Watch',
+          description: 'x',
+          onset: '2026-11-25T04:00:00-05:00',
+          ends: '2026-11-26T04:00:00-05:00',
+        },
+      },
+    ],
+  };
+  const fetchWith =
+    (nws: boolean, inmet: boolean): typeof globalThis.fetch =>
+    async (input) => {
+      const u = String(input);
+      const json = (b: unknown) =>
+        new Response(JSON.stringify(b), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      if (u.includes('api.weather.gov/alerts/active'))
+        return json(nws ? nwsFeed : { features: [] });
+      if (u.includes('apiprevmet3')) return json(inmet ? inmetFeed : { hoje: [], futuro: [] });
+      return new Response('nope', { status: 500 });
+    };
+  const BBOX = [-80, -27, -53, 36];
+  const headline = async (nws: boolean, inmet: boolean): Promise<string> => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-22T12:00:00Z'));
+    const { call, close } = await session({ fetch: fetchWith(nws, inmet) });
+    try {
+      const r = (await call('tools/call', {
+        name: 'nimbai_get_alerts',
+        arguments: { bbox: BBOX },
+      })) as { content?: { text?: string }[] };
+      return r.content?.map((c) => c.text ?? '').join('\n') ?? '';
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  };
+
+  it('INMET-only upcoming: says it', async () => {
+    const t = await headline(false, true);
+    expect(t).toContain('1 official warning(s)');
+    expect(t).toContain('approximate polygon');
+  });
+  it('NWS-only upcoming: does not say it', async () => {
+    const t = await headline(true, false);
+    expect(t).toContain('1 official warning(s)');
+    expect(t).not.toContain('approximate polygon');
+  });
+  it('both upcoming: says it', async () => {
+    const t = await headline(true, true);
+    expect(t).toContain('2 official warning(s)');
+    expect(t).toContain('approximate polygon');
+  });
+  it('neither: no upcoming sentence at all', async () => {
+    const t = await headline(false, false);
+    expect(t).not.toContain('LATER');
+    expect(t).not.toContain('approximate polygon');
+  });
+
+  const severeText = async (nws: boolean, inmet: boolean, lat: number, lon: number) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-22T12:00:00Z'));
+    const { call, close } = await session({ fetch: fetchWith(nws, inmet) });
+    try {
+      const r = (await call('tools/call', {
+        name: 'nimbai_get_severe_risk',
+        arguments: { lat, lon },
+      })) as { content?: { text?: string }[]; structuredContent?: { upcoming?: unknown[] } };
+      return {
+        text: r.content?.map((c) => c.text ?? '').join('\n') ?? '',
+        upcoming: r.structuredContent?.upcoming ?? [],
+      };
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  };
+
+  it('nimbai_get_severe_risk, NWS-only upcoming: no INMET caveat', async () => {
+    const { text, upcoming } = await severeText(true, false, 35, -77);
+    expect(upcoming).toHaveLength(1);
+    expect(text).toContain('start LATER');
+    expect(text).not.toContain('approximate polygon');
+  });
+  it('nimbai_get_severe_risk, INMET-only upcoming: says it', async () => {
+    const { text, upcoming } = await severeText(false, true, -25.54, -54.58);
+    expect(upcoming).toHaveLength(1);
+    expect(text).toContain('approximate polygon');
+  });
+  it('nimbai_get_severe_risk, neither: no upcoming sentence', async () => {
+    const { text } = await severeText(false, false, 35, -77);
+    expect(text).not.toContain('LATER');
   });
 });

@@ -268,15 +268,15 @@ export function nwsFeatureToAlert(feature: NwsFeature): Alert | null {
 }
 
 /**
- * Checked against the live feed (62 of 223 messages from /alerts/active carried
- * an `onset` later than the feed's own timestamp): the NWS endpoint lists
- * current messages, and some of them describe a hazard that has not begun.
- * `nwsFeatureToAlert` copies `onset` through unchanged and nothing here splits
- * them out, so they land in `alerts`. Say so rather than imply otherwise.
+ * Checked against the live feed (116 of 352 active messages, 33%, began later;
+ * lead times from 0.1 h to 124 h): the NWS endpoint means "issued and not yet
+ * expired", not "the hazard has begun". `queryNws` therefore splits on the
+ * hazard start, exactly as INMET is split.
  */
-const NWS_ONSET_NOTE =
-  ' Os alertas do NWS NÃO são separados em `upcoming`: o endpoint também lista mensagens cujo `onset` é futuro, ' +
-  'e elas aparecem em `alerts`. Confira o `onset` de cada alerta do NWS antes de dizer que está em vigor; só o INMET é separado em `upcoming`.';
+const NWS_UPCOMING_NOTE =
+  ' Alertas do NWS cujo início (`onset`; `effective` se `onset` faltar ou não for legível) ainda não chegou vêm separados em `upcoming` e AINDA NÃO estão em vigor; `alerts` traz os que já começaram. ' +
+  'O início é lido apenas se trouxer deslocamento de fuso explícito (p.ex. -05:00), e então é um instante absoluto, sem conversão; sem deslocamento conta como ilegível. `expires` não é interpretado: que também traga deslocamento é o que o feed publica, não algo que este código verifica. ' +
+  'Um alerta do NWS sem nenhum início legível fica em `alerts` (não se esconde um aviso oficial por não saber quando começa), então nesse caso confira o texto.';
 
 const SEVERITY_RANK: Record<string, number> = {
   extreme: 0,
@@ -296,15 +296,24 @@ function nwsSeverityParam(severity: string[] | undefined): string | undefined {
   return mapped.join(',');
 }
 
+/** An alert that has not begun, with its start instant (null if unreadable). */
+interface UpcomingEntry {
+  alert: Alert;
+  start: number | null;
+}
+
 type SourceOutcome =
   | {
       state: 'ok';
       alerts: Alert[];
       /**
        * Warnings matched to the same place whose validity window has not begun.
-       * Only INMET fills it. NWS does not split future-onset messages out (see NWS_ONSET_NOTE).
+       * Filled by both sources (NWS by `onset`/`effective`, INMET by `inicio`).
+       * Each carries its start instant beside the alert, as computed where the
+       * source's own convention is known; the alert's published fields are
+       * never rewritten to make a sort key.
        */
-      upcoming?: Alert[];
+      upcoming?: UpcomingEntry[];
       note?: string;
     }
   | { state: 'outside' }
@@ -319,6 +328,32 @@ export interface ConsultedSource {
   source: 'nws' | 'inmet' | 'meteoalarm';
   state: 'ok' | 'outside' | 'failed';
   reason?: string;
+}
+
+/**
+ * NWS publishes ISO 8601 with an explicit offset, so the string already names
+ * an absolute instant: no correction, unlike INMET. A string without an offset
+ * is refused rather than read in the host's zone.
+ */
+const NWS_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+
+export function parseNwsInstant(value: unknown): number | null {
+  // Feed data: anything may arrive. Like `str()`, accept strings only, so a
+  // malformed field cannot throw out of the loop and take the other source down.
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (!NWS_INSTANT.test(v)) return null;
+  const t = Date.parse(v);
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Hazard start of an NWS message: `onset`, else `effective`; null if neither reads. */
+function nwsHazardStart(p: NwsProperties | undefined): { instant: number } | null {
+  for (const raw of [p?.onset, p?.effective]) {
+    const instant = parseNwsInstant(raw);
+    if (instant !== null) return { instant };
+  }
+  return null;
 }
 
 async function queryNws(
@@ -343,6 +378,8 @@ async function queryNws(
   }
 
   const alerts: Alert[] = [];
+  const upcoming: UpcomingEntry[] = [];
+  const now = Date.now();
   let zoneOnly = 0;
   for (const feature of body.features ?? []) {
     const alert = nwsFeatureToAlert(feature);
@@ -356,9 +393,24 @@ async function queryNws(
       }
       if (!geometryIntersectsBbox(feature.geometry, input.bbox)) continue;
     }
+    // Geometry first, then the start: both lists get the same matching.
+    const start = nwsHazardStart(feature.properties);
+    if (start !== null && start.instant > now) {
+      // `onset` stays as NWS published it, absent or not: `effective` is the
+      // issue time, not the hazard start, and is never written into it.
+      upcoming.push({ alert, start: start.instant });
+      continue;
+    }
+    // In force, or the start is unknown. Deliberately fail-open: not knowing
+    // when an official warning begins is no reason to hide it.
     alerts.push(alert);
   }
-  return zoneOnly > 0 ? { state: 'ok', alerts, note: `${zoneOnly}` } : { state: 'ok', alerts };
+  return {
+    state: 'ok',
+    alerts,
+    upcoming,
+    ...(zoneOnly > 0 ? { note: `${zoneOnly}` } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -470,7 +522,7 @@ async function queryInmet(
     return { state: 'failed', reason: err instanceof Error ? err.message : String(err) };
   }
   const alerts: Alert[] = [];
-  const upcomingAlerts: Alert[] = [];
+  const upcomingAlerts: UpcomingEntry[] = [];
   const seenActive = new Set<string>();
   const seenUpcoming = new Set<string>();
   const now = Date.now();
@@ -493,13 +545,14 @@ async function queryInmet(
     if (!hit) continue;
     const alert = inmetToAlert(aviso);
     if (alert === null) continue;
-    const [seen, target] = inForce ? [seenActive, alerts] : [seenUpcoming, upcomingAlerts];
+    const seen = inForce ? seenActive : seenUpcoming;
     if (seen.has(alert.id)) continue;
     seen.add(alert.id);
-    target.push(alert);
+    if (inForce) alerts.push(alert);
+    else upcomingAlerts.push({ alert, start: parseInmetInstant(alert.onset) });
   }
   // An id already in force must not also be listed as upcoming.
-  const upcomingOnly = upcomingAlerts.filter((a) => !seenActive.has(a.id));
+  const upcomingOnly = upcomingAlerts.filter((e) => !seenActive.has(e.alert.id));
   return { state: 'ok', alerts, upcoming: upcomingOnly };
 }
 
@@ -556,10 +609,12 @@ export async function getAlerts(
    * not in force: never count, render or sort them with `alerts`. Sorted by
    * start time, soonest first.
    *
-   * Only INMET warnings are split out this way. The NWS active-alerts feed is
-   * NOT split: it carries messages whose `onset` is still in the future and
-   * they stay in `alerts`, so check an NWS alert's `onset` before calling it in
-   * force. An empty list here is therefore never "nothing is coming".
+   * Both sources are split this way: INMET by `inicio`, NWS by `onset` (else
+   * `effective`). An NWS alert with no readable start stays in `alerts`. An
+   * empty list here is still never "nothing is coming".
+   *
+   * An NWS `onset` carries its own UTC offset; an INMET one is Brasília time
+   * (UTC-3) with no marker.
    */
   upcoming: Alert[];
   coverage: string;
@@ -600,12 +655,12 @@ export async function getAlerts(
     succeeded++;
     parts.push(
       point !== undefined
-        ? `NWS (EUA) consultado: alertas por polígono/zona oficial para o ponto.${NWS_ONSET_NOTE}`
+        ? `NWS (EUA) consultado: alertas por polígono/zona oficial para o ponto.${NWS_UPCOMING_NOTE}`
         : 'NWS (EUA) consultado para o bbox: só alertas com polígono foram casados' +
             (nws.note !== undefined
               ? `; ${nws.note} alerta(s) definidos apenas por zona (sem polígono, p.ex. vigilâncias/watches e avisos marítimos) NÃO puderam ser casados com o bbox e foram omitidos.`
               : '.') +
-            NWS_ONSET_NOTE,
+            NWS_UPCOMING_NOTE,
     );
   } else if (nws.state === 'failed') {
     queried++;
@@ -658,16 +713,18 @@ export async function getAlerts(
   }
   parts.push('Ausência de alertas neste resultado não é ausência de risco.');
 
-  let upcoming = inmet.state === 'ok' ? (inmet.upcoming ?? []) : [];
+  let upcoming = [
+    ...(nws.state === 'ok' ? (nws.upcoming ?? []) : []),
+    ...(inmet.state === 'ok' ? (inmet.upcoming ?? []) : []),
+  ];
   if (wantedSeverity !== undefined && wantedSeverity.length > 0) {
     upcoming = upcoming.filter(
-      (a) => a.severity !== undefined && wantedSeverity.includes(a.severity.toLowerCase()),
+      (e) =>
+        e.alert.severity !== undefined && wantedSeverity.includes(e.alert.severity.toLowerCase()),
     );
   }
   upcoming.sort(
-    (a, b) =>
-      (parseInmetInstant(a.onset) ?? Number.MAX_SAFE_INTEGER) -
-      (parseInmetInstant(b.onset) ?? Number.MAX_SAFE_INTEGER),
+    (a, b) => (a.start ?? Number.MAX_SAFE_INTEGER) - (b.start ?? Number.MAX_SAFE_INTEGER),
   );
 
   if (queried > 0 && succeeded === 0) {
@@ -694,7 +751,7 @@ export async function getAlerts(
       reason: 'Feed has no geometry; point match impossible.',
     },
   ];
-  return { alerts, upcoming, coverage: parts.join(' '), consulted };
+  return { alerts, upcoming: upcoming.map((e) => e.alert), coverage: parts.join(' '), consulted };
 }
 
 function toConsulted(source: ConsultedSource['source'], outcome: SourceOutcome): ConsultedSource {

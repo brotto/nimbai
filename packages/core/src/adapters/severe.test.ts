@@ -197,3 +197,124 @@ describe('getSevereRisk - outside the US', () => {
     await expect(getSevereRisk(client(), { lat: 120, lon: 0 })).rejects.toBeInstanceOf(RangeError);
   });
 });
+
+// NWS stamps carry their own offset. The "[AINDA NÃO EM VIGOR; ...]" label names
+// Brasília only for INMET, whose stamps have no zone.
+describe('getSevereRisk - NWS warnings that have not started', () => {
+  const nwsFeature = (id: string, event: string, onset: string | null) => ({
+    geometry: null,
+    properties: {
+      id,
+      event,
+      severity: 'Severe',
+      status: 'Actual',
+      headline: `${event} headline`,
+      description: 'official text',
+      instruction: null,
+      areaDesc: 'Sedgwick, KS',
+      onset,
+      effective: onset,
+      ends: '2026-10-15T00:00:00-05:00',
+    },
+  });
+  const nwsClient = (features: unknown[]): HttpClient =>
+    new HttpClient({
+      userAgent: 'test',
+      fetch: (async (url: string | URL | Request) => {
+        const u = String(url);
+        if (!u.startsWith(NWS)) return new Response('nf', { status: 404 });
+        return new Response(JSON.stringify({ features }), { status: 200 });
+      }) as typeof fetch,
+    });
+  // Plain US point outside CONUS outlooks' reach is not needed: SPC 404s are tolerated.
+  const MIDWEST = { lat: 37.69, lon: -97.34 };
+
+  it('keeps the label on one line when the published start is not', async () => {
+    // `onset` here is unreadable (a newline breaks the offset), so `effective`
+    // decides the split while the label still shows what NWS published.
+    // `sanitizeExternalText` keeps newlines so official text keeps its
+    // paragraphs; a label is one line, so it must collapse them.
+    const broken = {
+      geometry: null,
+      properties: {
+        ...nwsFeature('brk', 'Tornado Watch', null).properties,
+        onset: '2026-10-14T03:00:00\n-05:00',
+        effective: '2026-10-14T03:00:00-05:00',
+      },
+    };
+    const { items, upcoming } = await getSevereRisk(nwsClient([broken]), MIDWEST);
+    expect(items).toHaveLength(0);
+    expect(upcoming).toHaveLength(1);
+    const label = upcoming[0]?.label ?? '';
+    expect(label).not.toMatch(/[\n\r]/);
+    expect(label).toContain('[AINDA NÃO EM VIGOR; início 2026-10-14T03:00:00 -05:00]');
+  });
+
+  it('a convective NWS watch that starts later goes to `upcoming`, with its own offset in the label', async () => {
+    const { items, upcoming, gaps } = await getSevereRisk(
+      nwsClient([
+        nwsFeature('w1', 'Tornado Warning', '2026-10-13T08:00:00-05:00'),
+        nwsFeature('w2', 'Tornado Watch', '2026-10-14T03:00:00-05:00'),
+        nwsFeature('w3', 'Flood Warning', '2026-10-14T03:00:00-05:00'),
+      ]),
+      MIDWEST,
+    );
+    expect(items.filter((i) => i.kind === 'official_warning').map((i) => i.label)).toEqual([
+      'Tornado Warning',
+    ]);
+    expect(upcoming.map((i) => i.label)).toEqual([
+      '[AINDA NÃO EM VIGOR; início 2026-10-14T03:00:00-05:00] Tornado Watch',
+    ]);
+    expect(upcoming[0]?.validFrom).toBe('2026-10-14T03:00:00-05:00');
+    expect(upcoming[0]?.attribution.source).toBe('nws');
+    expect(upcoming[0]?.label).not.toContain('Brasília');
+    // Not an INMET item: the approximate-polygon caveat does not apply.
+    expect(gaps.join(' ')).not.toContain('polígono aproximado');
+    // Nothing that has not started is among the items in force.
+    expect(items.map((i) => i.label).join('|')).not.toContain('Watch');
+  });
+
+  it('an NWS warning with no readable published start has a bare label and no validFrom', async () => {
+    // Split on `effective`; `onset` is absent, so nothing is published as the start.
+    const f = nwsFeature('w5', 'Tornado Watch', null);
+    f.properties.effective = '2026-10-14T03:00:00-05:00';
+    const { upcoming } = await getSevereRisk(nwsClient([f]), MIDWEST);
+    expect(upcoming.map((i) => i.label)).toEqual(['[AINDA NÃO EM VIGOR] Tornado Watch']);
+    expect(upcoming[0]?.validFrom).toBeUndefined();
+  });
+
+  it('a published onset is sanitized before it reaches the label: control chars stripped, length capped', async () => {
+    const f = nwsFeature('w6', 'Tornado Watch', `bad\u0000${'x'.repeat(500)}`);
+    f.properties.effective = '2026-10-14T03:00:00-05:00';
+    const { upcoming } = await getSevereRisk(nwsClient([f]), MIDWEST);
+    expect(upcoming).toHaveLength(1);
+    expect(upcoming[0]?.label).not.toContain('\u0000');
+    expect(upcoming[0]?.label.length).toBeLessThan(120);
+  });
+
+  it('the same NWS watch is in `items` once it has begun', async () => {
+    vi.setSystemTime(new Date('2026-10-14T09:00:00Z')); // 04:00-05:00 on the 14th
+    const { items, upcoming } = await getSevereRisk(
+      nwsClient([nwsFeature('w2', 'Tornado Watch', '2026-10-14T03:00:00-05:00')]),
+      MIDWEST,
+    );
+    expect(items.filter((i) => i.kind === 'official_warning').map((i) => i.label)).toEqual([
+      'Tornado Watch',
+    ]);
+    expect(upcoming).toEqual([]);
+  });
+
+  it('an NWS warning with no readable start stays in `items` (fail-open)', async () => {
+    const { items, upcoming } = await getSevereRisk(
+      nwsClient([nwsFeature('w4', 'Severe Thunderstorm Warning', null)]),
+      MIDWEST,
+    );
+    expect(items.some((i) => i.label === 'Severe Thunderstorm Warning')).toBe(true);
+    expect(upcoming).toEqual([]);
+  });
+
+  it('keeps naming Brasília, and only there, for an INMET item', async () => {
+    const { upcoming } = await getSevereRisk(client(), { lat: -23.5, lon: -55.5 });
+    expect(upcoming[0]?.label).toContain('horário de Brasília (UTC-3)');
+  });
+});

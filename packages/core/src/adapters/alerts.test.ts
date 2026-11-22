@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { HttpClient, SourceError, sanitizeExternalText } from '../http.js';
 import type { Bbox } from '../types.js';
-import { getAlerts } from './alerts.js';
+import { getAlerts, parseNwsInstant } from './alerts.js';
 
 const fixture = (name: string): string =>
   readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8');
@@ -439,17 +439,13 @@ describe('getAlerts - outside the US', () => {
     }
   });
 
-  // Established against the live feed, not assumed: /alerts/active returns
-  // messages whose `onset` is still ahead, and they are not split out here.
-  it('does not claim NWS is absent from the future: it says they land in `alerts`', async () => {
-    const { upcoming, coverage } = await getAlerts(clientWith([storms]), {
-      lat: 35.2,
-      lon: -97.4,
-    });
-    expect(upcoming).toEqual([]);
-    expect(coverage).not.toContain('só retorna alertas ativos');
-    expect(coverage).toContain('NÃO são separados em `upcoming`');
-    expect(coverage).toContain('Confira o `onset`');
+  it('says in coverage that NWS is split too, and that only an explicit offset is read', async () => {
+    const { coverage } = await getAlerts(clientWith([storms]), { lat: 35.2, lon: -97.4 });
+    expect(coverage).toContain('Alertas do NWS cujo início');
+    expect(coverage).toContain('`expires` não é interpretado');
+    expect(coverage).toContain('separados em `upcoming`');
+    expect(coverage).toContain('deslocamento de fuso explícito');
+    expect(coverage).not.toContain('NÃO são separados');
   });
 
   it('lists the same INMET warning once it is in force', async () => {
@@ -504,5 +500,281 @@ describe('getAlerts - bbox and input validation', () => {
     await expect(getAlerts(http, { lat: 10 })).rejects.toBeInstanceOf(RangeError);
     await expect(getAlerts(http, { lat: 91, lon: 0 })).rejects.toBeInstanceOf(RangeError);
     await expect(getAlerts(http, { bbox: [10, 0, 5, 1] })).rejects.toBeInstanceOf(RangeError);
+  });
+});
+
+// The live active feed lists messages whose hazard has not begun (116 of 352 at
+// the time of measuring). The rule: start = `onset`, else `effective`; later
+// than now means `upcoming`. NWS stamps carry their own offset, so there is no
+// Brasília correction here.
+describe('getAlerts - NWS hazard start', () => {
+  const NOW = '2026-11-22T12:00:00Z';
+  const SQUARE = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-78, 34],
+        [-76, 34],
+        [-76, 36],
+        [-78, 36],
+        [-78, 34],
+      ],
+    ],
+  };
+  interface Times {
+    onset?: string | null;
+    effective?: string | null;
+  }
+  const feature = (
+    id: string,
+    times: Times,
+    over: { event?: string; severity?: string; geometry?: unknown } = {},
+  ) => ({
+    geometry: 'geometry' in over ? over.geometry : SQUARE,
+    properties: {
+      id,
+      event: over.event ?? 'Winter Storm Warning',
+      severity: over.severity ?? 'Severe',
+      status: 'Actual',
+      headline: `h ${id}`,
+      description: 'd',
+      instruction: null,
+      areaDesc: 'somewhere',
+      ends: '2026-11-30T00:00:00-05:00',
+      expires: '2026-11-30T00:00:00-05:00',
+      ...times,
+    },
+  });
+  const POINT = { lat: 35, lon: -77 };
+  const clientFor = (nws: unknown[], inmetFeed?: unknown): HttpClient =>
+    new HttpClient({
+      userAgent: 'test',
+      fetch: (async (url: string | URL | Request) => {
+        const u = String(url);
+        const body = u.startsWith(NWS)
+          ? { features: nws }
+          : u.startsWith(INMET) && inmetFeed !== undefined
+            ? inmetFeed
+            : null;
+        if (body === null) return new Response('nf', { status: 404 });
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }) as typeof fetch,
+    });
+  const at = async <T>(iso: string, fn: () => Promise<T>): Promise<T> => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(iso));
+      return await fn();
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+  const run = (feats: unknown[], iso = NOW, input: Parameters<typeof getAlerts>[1] = POINT) =>
+    at(iso, () => getAlerts(clientFor(feats), input));
+
+  it('a future onset goes to `upcoming`, never to `alerts`', async () => {
+    const r = await run([
+      feature('a', { onset: '2026-11-25T04:00:00-05:00' }),
+      feature('b', { onset: '2026-11-22T06:00:00-05:00' }),
+    ]);
+    expect(r.alerts.map((x) => x.id)).toEqual(['b']);
+    expect(r.upcoming.map((x) => x.id)).toEqual(['a']);
+  });
+
+  it('reads the offset as published: no Brasília +3 correction on an NWS stamp', async () => {
+    // 04:00-05:00 is 09:00Z. At 08:30Z it is still ahead; adding INMET'S +3 h to
+    // the wall clock (04:00 -> 07:00Z) would call it in force.
+    const f = feature('a', { onset: '2026-11-23T04:00:00-05:00' });
+    const before = await run([f], '2026-11-23T08:30:00Z');
+    expect(before.alerts).toEqual([]);
+    expect(before.upcoming.map((x) => x.id)).toEqual(['a']);
+    const after = await run([f], '2026-11-23T09:30:00Z');
+    expect(after.alerts.map((x) => x.id)).toEqual(['a']);
+    expect(after.upcoming).toEqual([]);
+  });
+
+  it('the boundary is exclusive: a start at exactly now is already in force', async () => {
+    const f = feature('a', { onset: '2026-11-23T09:00:00Z' });
+    expect((await run([f], '2026-11-23T09:00:00Z')).alerts).toHaveLength(1);
+    expect((await run([f], '2026-11-23T08:59:59Z')).upcoming).toHaveLength(1);
+  });
+
+  it('falls back to `effective` for the split, and leaves the published `onset` untouched', async () => {
+    const future = '2026-11-24T10:00:00-05:00';
+    const cases: [string, Times, string | undefined][] = [
+      ['absent', { effective: future }, undefined],
+      ['null', { onset: null, effective: future }, undefined],
+      ['unreadable', { onset: 'garbage', effective: future }, 'garbage'],
+    ];
+    for (const [label, times, published] of cases) {
+      const r = await run([feature('a', times)]);
+      expect(r.alerts, label).toEqual([]);
+      expect(r.upcoming, label).toHaveLength(1);
+      // `effective` is the issue time, not the hazard start: it never appears as `onset`.
+      expect(r.upcoming[0]?.onset, label).toBe(published);
+    }
+    const past = await run([feature('b', { effective: '2026-11-22T01:00:00-05:00' })]);
+    expect(past.alerts.map((x) => x.id)).toEqual(['b']);
+  });
+
+  it('sorts by the computed start even where `onset` is absent, without writing it anywhere', async () => {
+    // X has no `onset`; its `effective` (the start used) is earlier than Y's onset.
+    const r = await run([
+      feature('Y', { onset: '2026-11-26T00:00:00Z' }),
+      feature('X', { effective: '2026-11-24T00:00:00Z' }),
+    ]);
+    expect(r.upcoming.map((x) => x.id)).toEqual(['X', 'Y']);
+    expect(r.upcoming[0]?.onset).toBeUndefined();
+  });
+
+  it('`onset` wins over `effective` when both read', async () => {
+    // Issued earlier (effective past) but the hazard begins later.
+    const r = await run([
+      feature('a', { onset: '2026-11-25T00:00:00Z', effective: '2026-11-21T00:00:00Z' }),
+    ]);
+    expect(r.alerts).toEqual([]);
+    expect(r.upcoming).toHaveLength(1);
+  });
+
+  // Conscious choice, as for INMET: not knowing when an official warning starts
+  // is no reason to hide it from view.
+  it('fails open: with no readable start the alert stays in `alerts`', async () => {
+    const r = await run([
+      feature('none', {}),
+      feature('junk', { onset: 'soon', effective: 'tomorrow' }),
+      // An offset-less stamp is not read in the host zone; it counts as unreadable.
+      feature('naive', { onset: '2026-12-25T04:00:00' }),
+      feature('nulls', { onset: null, effective: null }),
+    ]);
+    expect(r.alerts.map((x) => x.id).sort()).toEqual(['junk', 'naive', 'none', 'nulls']);
+    expect(r.upcoming).toEqual([]);
+  });
+
+  it('keeps the bbox geometry and zone-only handling for both lists', async () => {
+    const bbox: Bbox = [-79, 33, -75, 37];
+    const r = await run(
+      [
+        feature('in-now', { onset: '2026-11-22T00:00:00Z' }),
+        feature('in-later', { onset: '2026-11-25T00:00:00Z' }),
+        feature(
+          'out-later',
+          { onset: '2026-11-25T00:00:00Z' },
+          {
+            geometry: {
+              type: 'Polygon',
+              coordinates: [
+                [
+                  [-100, 30],
+                  [-99, 30],
+                  [-99, 31],
+                  [-100, 31],
+                  [-100, 30],
+                ],
+              ],
+            },
+          },
+        ),
+        feature('zone-later', { onset: '2026-11-25T00:00:00Z' }, { geometry: null }),
+      ],
+      NOW,
+      { bbox },
+    );
+    expect(r.alerts.map((x) => x.id)).toEqual(['in-now']);
+    expect(r.upcoming.map((x) => x.id)).toEqual(['in-later']);
+    expect(r.coverage).toContain('sem polígono');
+  });
+
+  it('a malformed `onset`/`effective` (number, object, array) is unreadable, not a crash', async () => {
+    const bad: unknown[] = [12345, { a: 1 }, ['x'], true];
+    for (const v of bad) {
+      const r = await run([
+        feature('m', { onset: v as never, effective: v as never }),
+        feature('ok', { onset: '2026-11-25T00:00:00Z' }),
+      ]);
+      expect(
+        r.alerts.map((x) => x.id),
+        String(JSON.stringify(v)),
+      ).toEqual(['m']);
+      expect(r.upcoming.map((x) => x.id)).toEqual(['ok']);
+    }
+    // And one malformed American feature does not take a good INMET result with it.
+    const inmetFeed = {
+      hoje: [
+        {
+          id: 9,
+          descricao: 'Tempestade',
+          severidade: 'Perigo',
+          inicio: '2026-11-22 00:00',
+          fim: '2026-11-22 23:59',
+          encerrado: false,
+          poligono: JSON.stringify(SQUARE),
+        },
+      ],
+      futuro: [],
+    };
+    const r = await at(NOW, () =>
+      getAlerts(clientFor([feature('m', { onset: 12345 as never })], inmetFeed), {
+        bbox: [-80, -27, -53, 36],
+      }),
+    );
+    expect(r.alerts.map((x) => x.id).sort()).toEqual(['inmet:9', 'm']);
+  });
+
+  it('applies the severity filter to NWS `upcoming`', async () => {
+    const feats = [
+      feature('s', { onset: '2026-11-25T00:00:00Z' }, { severity: 'Severe' }),
+      feature('m', { onset: '2026-11-26T00:00:00Z' }, { severity: 'Minor' }),
+    ];
+    const r = await at(NOW, () => getAlerts(clientFor(feats), { ...POINT, severity: ['Severe'] }));
+    expect(r.upcoming.map((x) => x.id)).toEqual(['s']);
+  });
+
+  it('sorts a mixed NWS/INMET `upcoming` by true start instant', async () => {
+    const square = (id: number, inicio: string) => ({
+      id,
+      descricao: 'Tempestade',
+      severidade: 'Perigo',
+      inicio,
+      fim: '2026-11-30 23:59',
+      encerrado: false,
+      poligono: JSON.stringify(SQUARE),
+    });
+    // True instants (UTC), now = 22 Nov 12:00Z:
+    //   E  nws   2026-11-22T20:00-05:00 -> 23 Nov 01:00Z
+    //   A  inmet 2026-11-23 05:00 (Brasília) -> 23 Nov 08:00Z
+    //   B  nws   2026-11-23T04:00-05:00 -> 23 Nov 09:00Z
+    //   C  inmet 2026-11-23 07:00 (Brasília) -> 23 Nov 10:00Z
+    //   D  nws   2026-11-23T06:00-05:00 -> 23 Nov 11:00Z
+    const feats = [
+      feature('D', { onset: '2026-11-23T06:00:00-05:00' }),
+      feature('B', { onset: '2026-11-23T04:00:00-05:00' }),
+      feature('E', { onset: '2026-11-22T20:00:00-05:00' }),
+    ];
+    const inmetFeed = {
+      hoje: [],
+      futuro: [square(3, '2026-11-23 07:00'), square(1, '2026-11-23 05:00')],
+    };
+    const r = await at(NOW, () =>
+      getAlerts(clientFor(feats, inmetFeed), { bbox: [-80, -27, -53, 36] }),
+    );
+    expect(r.upcoming.map((x) => x.id)).toEqual(['E', 'inmet:1', 'B', 'inmet:3', 'D']);
+    expect(r.alerts).toEqual([]);
+  });
+
+  it('parseNwsInstant accepts only an explicit offset', () => {
+    for (const v of [12345, {}, [], true, Symbol('x')]) expect(parseNwsInstant(v)).toBeNull();
+    expect(parseNwsInstant('2026-11-23T04:00:00-05:00')).toBe(Date.UTC(2026, 10, 23, 9));
+    expect(parseNwsInstant('2026-11-23T09:00:00Z')).toBe(Date.UTC(2026, 10, 23, 9));
+    expect(parseNwsInstant('2026-11-23T09:00:00.5+00:00')).toBe(
+      Date.UTC(2026, 10, 23, 9, 0, 0, 500),
+    );
+    expect(parseNwsInstant('2026-11-23T09:00:00')).toBeNull();
+    expect(parseNwsInstant('2026-11-23 09:00')).toBeNull();
+    expect(parseNwsInstant('')).toBeNull();
+    expect(parseNwsInstant(null)).toBeNull();
+    expect(parseNwsInstant(undefined)).toBeNull();
   });
 });
