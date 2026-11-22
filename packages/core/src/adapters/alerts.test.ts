@@ -45,6 +45,114 @@ const rawStorms = (JSON.parse(fixture('nws-alerts-storms.json')) as { features: 
   .features;
 const rawTornado = rawStorms.find((f) => f.properties.event === 'Tornado Warning') as RawFeature;
 
+describe('getAlerts - INMET times carry no zone', () => {
+  it('says in coverage that onset/expires are Brasília time, not UTC', async () => {
+    // `upcoming` makes onset the field a reader acts on, and the INMET string
+    // has no zone marker. Sorting converts it; the rendered text does not.
+    const { coverage } = await getAlerts(clientWith([inmet]), {
+      lat: -25.54778,
+      lon: -54.58806,
+    });
+    expect(coverage).toContain('BRASÍLIA (UTC-3)');
+    expect(coverage).toContain('Não os leia como UTC');
+  });
+});
+
+// A feed built here, so the only thing separating "in force" from "upcoming"
+// is how an INMET stamp (Brasília, UTC-3, no zone marker) becomes an instant.
+describe('getAlerts - INMET Brasília-time boundary', () => {
+  const POINT = { lat: -25.54, lon: -54.58 };
+  const aviso = (id: number, severidade: string, inicio: string, fim: string) => ({
+    id,
+    descricao: 'Tempestade',
+    severidade,
+    inicio,
+    fim,
+    encerrado: false,
+    poligono: JSON.stringify({
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-55, -26],
+          [-54, -26],
+          [-54, -25],
+          [-55, -25],
+          [-55, -26],
+        ],
+      ],
+    }),
+  });
+  const feedClient = (hoje: unknown[], futuro: unknown[] = []): HttpClient =>
+    new HttpClient({
+      userAgent: 'test',
+      fetch: (async () =>
+        new Response(JSON.stringify({ hoje, futuro }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })) as typeof fetch,
+    });
+  const at = async <T>(iso: string, fn: () => Promise<T>): Promise<T> => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(iso));
+      return await fn();
+    } finally {
+      vi.useRealTimers();
+    }
+  };
+
+  // 13:00 Brasília is 16:00Z. At 15:00Z it is 12:00 in Brasília: an hour away.
+  // Read as UTC it would be 13:00Z, already past, and be wrongly in force.
+  it('inicio 13:00 Brasília at 15:00Z is upcoming, not in force', async () => {
+    const r = await at('2026-10-13T15:00:00Z', () =>
+      getAlerts(feedClient([aviso(1, 'Perigo', '2026-10-13 13:00', '2026-10-13 23:59')]), POINT),
+    );
+    expect(r.alerts).toEqual([]);
+    expect(r.upcoming.map((a) => a.id)).toEqual(['inmet:1']);
+  });
+
+  it('inicio 13:00 Brasília is in force once 16:00Z has passed', async () => {
+    const r = await at('2026-10-13T16:01:00Z', () =>
+      getAlerts(feedClient([aviso(1, 'Perigo', '2026-10-13 13:00', '2026-10-13 23:59')]), POINT),
+    );
+    expect(r.alerts.map((a) => a.id)).toEqual(['inmet:1']);
+    expect(r.upcoming).toEqual([]);
+  });
+
+  // Mirror: fim 13:00 Brasília is 16:00Z. At 15:00Z the warning has not ended;
+  // read as UTC (13:00Z) it would look expired and be silently dropped.
+  it('fim 13:00 Brasília at 15:00Z is still in force, not expired', async () => {
+    const r = await at('2026-10-13T15:00:00Z', () =>
+      getAlerts(feedClient([aviso(1, 'Perigo', '2026-10-13 06:00', '2026-10-13 13:00')]), POINT),
+    );
+    expect(r.alerts.map((a) => a.id)).toEqual(['inmet:1']);
+  });
+
+  it('fim 13:00 Brasília is expired once 16:00Z has passed', async () => {
+    const r = await at('2026-10-13T16:01:00Z', () =>
+      getAlerts(feedClient([aviso(1, 'Perigo', '2026-10-13 06:00', '2026-10-13 13:00')]), POINT),
+    );
+    expect(r.alerts).toEqual([]);
+    expect(r.upcoming).toEqual([]);
+  });
+
+  it('applies the severity filter to `upcoming`: the match stays, the rest goes', async () => {
+    const r = await at('2026-10-13T15:00:00Z', () =>
+      getAlerts(
+        feedClient(
+          [],
+          [
+            aviso(2, 'Perigo', '2026-10-14 06:00', '2026-10-14 23:59'),
+            aviso(3, 'Grande Perigo', '2026-10-15 06:00', '2026-10-15 23:59'),
+          ],
+        ),
+        { ...POINT, severity: ['Grande Perigo'] },
+      ),
+    );
+    expect(r.upcoming.map((a) => a.id)).toEqual(['inmet:3']);
+  });
+});
+
 describe('getAlerts - NWS', () => {
   it('parses a real Tornado Warning with its impact-based-warning tags', async () => {
     const urls: string[] = [];
@@ -212,20 +320,136 @@ describe('getAlerts - outside the US', () => {
 
   // Time is frozen: the fixture carries real dates, and the whole point of
   // these two cases is which side of `inicio`/`fim` "now" falls on.
-  it('does NOT list an INMET warning that starts tomorrow as active, but counts it', async () => {
+  it('lists an INMET warning that starts tomorrow in `upcoming`, never in `alerts`', async () => {
     vi.useFakeTimers();
     try {
       // 13 Oct 2026, 12:00 Brasília (UTC-3): the 14 Oct warnings have not begun.
       vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
-      const { alerts, coverage } = await getAlerts(clientWith([inmet]), {
+      const { alerts, upcoming, coverage } = await getAlerts(clientWith([inmet]), {
         lat: -3.12,
         lon: -60.02,
       });
       expect(alerts.map((a) => a.event)).not.toContain('Chuvas Intensas');
-      expect(coverage).toContain('começam no futuro');
+      expect(alerts.map((a) => a.id)).not.toContain('inmet:56038');
+      expect(upcoming.map((a) => a.id)).toEqual(['inmet:56038']);
+      expect(upcoming[0]?.event).toBe('Chuvas Intensas');
+      expect(upcoming[0]?.onset).toBe('2026-10-14 00:01');
+      expect(coverage).toContain('`upcoming`');
+      expect(coverage).toContain('AINDA NÃO estão em vigor');
+      expect(coverage).not.toContain('começam no futuro');
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // The regression this guards: upcoming avisos used to be counted before any
+  // geometry test, so the feed's Brazil-wide futuro list was reported as
+  // "for this location". 56038 (Amazonas) and 56046 (Mato Grosso) are both
+  // upcoming here; neither polygon contains Foz do Iguaçu.
+  it('does not list or count an upcoming warning whose polygon misses the point', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+      const { alerts, upcoming, coverage } = await getAlerts(clientWith([inmet]), {
+        lat: -25.54,
+        lon: -54.58,
+      });
+      expect(upcoming).toEqual([]);
+      expect(alerts.map((a) => a.id)).toEqual(['inmet:56014']);
+      expect(coverage).not.toMatch(/\d+ aviso\(s\)/);
+      expect(coverage).not.toContain('começam no futuro');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('applies the geometry test to upcoming warnings in a bbox query too', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+      const around = (lon: number, lat: number): Bbox => [
+        lon - 0.1,
+        lat - 0.1,
+        lon + 0.1,
+        lat + 0.1,
+      ];
+      const hit = await getAlerts(clientWith([inmet]), { bbox: around(-60.02, -3.12) });
+      expect(hit.upcoming.map((a) => a.id)).toEqual(['inmet:56038']);
+      const miss = await getAlerts(clientWith([inmet]), { bbox: around(-48.5, -1.45) });
+      expect(miss.upcoming).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps in-force and upcoming apart, sorted soonest first, with no id in both', async () => {
+    vi.useFakeTimers();
+    try {
+      // No real fixture warning has a polygon holding both an in-force and an
+      // upcoming one, so the feed is built here.
+      vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+      const square = (id: number, inicio: string, fim: string) => ({
+        id,
+        descricao: 'Tempestade',
+        severidade: 'Perigo',
+        inicio,
+        fim,
+        encerrado: false,
+        poligono: JSON.stringify({
+          type: 'Polygon',
+          coordinates: [
+            [
+              [-55, -26],
+              [-54, -26],
+              [-54, -25],
+              [-55, -25],
+              [-55, -26],
+            ],
+          ],
+        }),
+      });
+      const feed = {
+        hoje: [square(1, '2026-10-13 00:00', '2026-10-13 23:59')],
+        futuro: [
+          square(3, '2026-10-15 06:00', '2026-10-15 23:59'),
+          square(2, '2026-10-14 06:00', '2026-10-14 23:59'),
+          // Same id as the in-force one, listed again as future.
+          square(1, '2026-10-14 00:00', '2026-10-14 23:59'),
+        ],
+      };
+      const http = new HttpClient({
+        userAgent: 'test',
+        fetch: (async () =>
+          new Response(JSON.stringify(feed), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })) as typeof fetch,
+      });
+      const { alerts, upcoming } = await getAlerts(http, { lat: -25.54, lon: -54.58 });
+      expect(alerts.map((a) => a.id)).toEqual(['inmet:1']);
+      expect(upcoming.map((a) => a.id)).toEqual(['inmet:2', 'inmet:3']);
+      const filtered = await getAlerts(http, {
+        lat: -25.54,
+        lon: -54.58,
+        severity: ['Grande Perigo'],
+      });
+      expect(filtered.upcoming).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Established against the live feed, not assumed: /alerts/active returns
+  // messages whose `onset` is still ahead, and they are not split out here.
+  it('does not claim NWS is absent from the future: it says they land in `alerts`', async () => {
+    const { upcoming, coverage } = await getAlerts(clientWith([storms]), {
+      lat: 35.2,
+      lon: -97.4,
+    });
+    expect(upcoming).toEqual([]);
+    expect(coverage).not.toContain('só retorna alertas ativos');
+    expect(coverage).toContain('NÃO são separados em `upcoming`');
+    expect(coverage).toContain('Confira o `onset`');
   });
 
   it('lists the same INMET warning once it is in force', async () => {

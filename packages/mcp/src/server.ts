@@ -91,11 +91,21 @@ async function guard(fn: () => Promise<ToolResult>): Promise<ToolResult> {
  * answered, and saying "no alert found" for all three is a false all-clear.
  * The sentence always names what was actually consulted.
  */
-export function alertSummary(count: number, consulted: ConsultedSource[]): string {
+export function alertSummary(
+  count: number,
+  consulted: ConsultedSource[],
+  upcomingCount = 0,
+): string {
   const failed = consulted.filter((c) => c.state === 'failed').map((c) => c.source);
   const answered = consulted.filter((c) => c.state === 'ok').map((c) => c.source);
+  // Warnings that have not begun are announced, never folded into the count of
+  // those in force: "3 alerts" and "none yet, 3 coming" are different answers.
+  const later =
+    upcomingCount > 0
+      ? ` ${upcomingCount} official warning(s) matched to this area (approximate polygon, may not apply to the exact spot) start LATER and are NOT in force yet: see \`upcoming\`. Tell the user they are coming, not active.`
+      : '';
   if (count > 0) {
-    const base = `${count} active official alert(s). Reproduce the official text verbatim, with its source and time.`;
+    const base = `${count} active official alert(s). Reproduce the official text verbatim, with its source and time.${later}`;
     // A partial list is still a short list: say so, or the user reads it as complete.
     return failed.length > 0
       ? `${base} ${failed.join(', ')} FAILED, so this list may be incomplete.`
@@ -104,7 +114,7 @@ export function alertSummary(count: number, consulted: ConsultedSource[]): strin
   if (failed.length > 0) {
     return (
       `No alert from the sources that answered, but ${failed.join(', ')} FAILED — ` +
-      'this is NOT an all-clear. Tell the user the source is unavailable and point them at their official authority.'
+      `this is NOT an all-clear.${later} Tell the user the source is unavailable and point them at their official authority.`
     );
   }
   if (answered.length === 0) {
@@ -113,7 +123,7 @@ export function alertSummary(count: number, consulted: ConsultedSource[]): strin
       'Tell the user to check their national weather service.'
     );
   }
-  return `No active official alert from ${answered.join(', ')}. Absence of an alert is not absence of risk.`;
+  return `No active official alert from ${answered.join(', ')}.${later} Absence of an alert is not absence of risk.`;
 }
 
 /**
@@ -264,7 +274,10 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         const attributions: Attribution[] = [];
         if (current !== null) attributions.push(current.attribution);
         if (forecast !== null) attributions.push(forecast.attribution);
-        if (alerts !== null) attributions.push(...alerts.alerts.map((a) => a.attribution));
+        if (alerts !== null) {
+          attributions.push(...alerts.alerts.map((a) => a.attribution));
+          attributions.push(...alerts.upcoming.map((a) => a.attribution));
+        }
         if (obs !== null) attributions.push(obs.attribution);
 
         const unavailable: string[] = [];
@@ -283,8 +296,11 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
           alerts === null
             ? 'Official alerts could NOT be checked — this is not an all-clear.'
             : alerts.alerts.length > 0
-              ? `${alerts.alerts.length} active official alert(s): ${alerts.alerts.map((a) => a.event).join(', ')}.`
-              : alertSummary(0, alerts.consulted);
+              ? `${alerts.alerts.length} active official alert(s): ${alerts.alerts.map((a) => a.event).join(', ')}.` +
+                (alerts.upcoming.length > 0
+                  ? ` ${alerts.upcoming.length} more start LATER and are NOT in force yet (see alerts_upcoming): ${alerts.upcoming.map((a) => a.event).join(', ')}.`
+                  : '')
+              : alertSummary(0, alerts.consulted, alerts.upcoming.length);
 
         return ok({
           summary: `${conditionLine} ${alertLine}`,
@@ -303,6 +319,8 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
                   ? trimSeries(forecast, 12)
                   : forecast,
             alerts: alerts?.alerts ?? null,
+            // Not in force yet: never merge with `alerts`.
+            alerts_upcoming: alerts?.upcoming ?? null,
             alerts_coverage: alerts?.coverage ?? null,
             alerts_consulted: alerts?.consulted ?? null,
             unavailable,
@@ -350,7 +368,9 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
       description:
         'Active official warnings and watches for a point or bbox, with the issuing authority’s ' +
         'text reproduced verbatim. Reproduce that text to the user without paraphrasing it, and ' +
-        'read `coverage` — it says which countries this call actually checked.',
+        'read `coverage` — it says which countries this call actually checked. `upcoming` lists ' +
+        'warnings for the same place that start later (Brazil/INMET only): they are NOT in force, ' +
+        'so present them as coming, never as active.',
       inputSchema: PlaceSchema.extend({
         severity: z.array(z.string()).optional().describe('Filter by official severity labels'),
       }),
@@ -373,9 +393,15 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
           ...(input.severity === undefined ? {} : { severity: input.severity }),
         });
         return ok({
-          summary: alertSummary(result.alerts.length, result.consulted),
-          data: { alerts: result.alerts, coverage: result.coverage, consulted: result.consulted },
-          attributions: result.alerts.map((a) => a.attribution),
+          summary: alertSummary(result.alerts.length, result.consulted, result.upcoming.length),
+          data: {
+            alerts: result.alerts,
+            // Warnings whose window has not begun: NOT in force.
+            upcoming: result.upcoming,
+            coverage: result.coverage,
+            consulted: result.consulted,
+          },
+          attributions: [...result.alerts, ...result.upcoming].map((a) => a.attribution),
           safetyNotice: true,
         });
       }),
@@ -540,6 +566,8 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         'Severe-weather risk for a point, split by kind: official_warning, official_outlook, ' +
         'favourable_environment and automated_guidance. These are NOT interchangeable — an ' +
         'environment favourable to tornadoes is a forecast of potential, never a warning. ' +
+        'Official warnings that have NOT started yet are returned separately in `upcoming` ' +
+        '(label "[AINDA NÃO EM VIGOR]"): they are not in force and never appear in `items`. ' +
         'Always read `gaps`: it says what does not exist for that location.',
       inputSchema: PlaceSchema,
       annotations: READ_ONLY,
@@ -551,14 +579,18 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
         const result = await getSevereRisk(http, point);
         const warnings = result.items.filter((i) => i.kind === 'official_warning');
         const others = result.items.length - warnings.length;
+        const laterNote =
+          result.upcoming.length > 0
+            ? ` ${result.upcoming.length} more official warning(s) matched to this area (approximate polygon, may not apply to the exact spot) start LATER and are NOT in force yet: see \`upcoming\`.`
+            : '';
         const summary =
           warnings.length > 0
-            ? `${warnings.length} official warning(s) in force. Lead with them and cite the authority.`
+            ? `${warnings.length} official warning(s) in force. Lead with them and cite the authority.${laterNote}`
             : result.warnings === 'failed'
-              ? `The official-warning lookup FAILED, so NimbAI cannot say whether a warning is in force — this is NOT an all-clear. ${others} other risk signal(s); read gaps.`
+              ? `The official-warning lookup FAILED, so NimbAI cannot say whether a warning is in force — this is NOT an all-clear. ${others} other risk signal(s); read gaps.${laterNote}`
               : result.warnings === 'outside'
                 ? `No warning source covers this point, so NimbAI cannot say whether a warning is in force. ${others} other risk signal(s); read gaps.`
-                : `No official warning in force per the sources that answered. ${others} other risk signal(s). Absence of a warning is not absence of risk.`;
+                : `No official warning in force per the sources that answered.${laterNote} ${others} other risk signal(s). Absence of a warning is not absence of risk.`;
         return ok({
           summary,
           data: {
@@ -567,7 +599,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
               ? { note: 'A bbox was given; its centre was used as the point.' }
               : {}),
           },
-          attributions: result.items.map((i) => i.attribution),
+          attributions: [...result.items, ...result.upcoming].map((i) => i.attribution),
           safetyNotice: true,
         });
       }),

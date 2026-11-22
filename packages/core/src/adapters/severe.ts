@@ -173,6 +173,25 @@ function alertToRisk(alert: Alert): RiskItem {
   return item;
 }
 
+/**
+ * A warning whose validity window has not begun. Same `kind`, because it is
+ * still an authority's warning, but it is returned in a separate list and its
+ * label says plainly that it is not in force: `validFrom` alone is too easy to
+ * overlook. For INMET the label also names the zone of the start time.
+ */
+function upcomingAlertToRisk(alert: Alert): RiskItem {
+  const item = alertToRisk(alert);
+  // `validFrom` stays exactly as published (INMET stamps carry no zone), so the
+  // zone goes into the label: it travels with the item when one is copied out
+  // of the response, where the coverage sentence does not.
+  const start =
+    alert.attribution.source === 'inmet' && alert.onset !== undefined
+      ? `; início ${alert.onset} horário de Brasília (UTC-3)`
+      : '';
+  item.label = `[AINDA NÃO EM VIGOR${start}] ${item.label}`;
+  return item;
+}
+
 function isConvective(alert: Alert): boolean {
   return alert.attribution.source === 'inmet'
     ? INMET_CONVECTIVE.test(alert.event)
@@ -193,6 +212,12 @@ export async function getSevereRisk(
   input: { lat: number; lon: number },
 ): Promise<{
   items: RiskItem[];
+  /**
+   * Convective official warnings whose validity window has NOT begun yet.
+   * Kept out of `items` on purpose: nothing here is in force. Sorted by start
+   * time. Only INMET contributes; an empty list is not "nothing is coming".
+   */
+  upcoming: RiskItem[];
   coverage: string;
   gaps: string[];
   /** Whether the official-warning lookup actually answered. */
@@ -206,6 +231,7 @@ export async function getSevereRisk(
 
   const nowMs = Date.now();
   const items: RiskItem[] = [];
+  const upcoming: RiskItem[] = [];
   const gaps: string[] = [];
   const parts: string[] = [];
   let attempted = 0;
@@ -234,10 +260,15 @@ export async function getSevereRisk(
       succeeded++;
       const convective = warnRes.r.alerts.filter(isConvective);
       items.push(...convective.map(alertToRisk));
+      const convectiveUpcoming = warnRes.r.upcoming.filter(isConvective);
+      upcoming.push(...convectiveUpcoming.map(upcomingAlertToRisk));
       parts.push(
         `Avisos oficiais (convectivos: tornado, tempestade severa, vento extremo; INMET tempestade/granizo): ${warnRes.r.coverage}`,
       );
-      if (warnRes.r.alerts.some((a) => a.attribution.source === 'inmet')) {
+      if (
+        warnRes.r.alerts.some((a) => a.attribution.source === 'inmet') ||
+        convectiveUpcoming.length > 0
+      ) {
         gaps.push(
           'Avisos do INMET são casados por polígono aproximado; a área oficial é por município e o município do ponto não foi resolvido.',
         );
@@ -336,5 +367,5 @@ export async function getSevereRisk(
           : warnRes.r.consulted.some((c) => c.state === 'failed')
             ? 'failed'
             : 'outside';
-  return { items, coverage: parts.join(' '), gaps, warnings };
+  return { items, upcoming, coverage: parts.join(' '), gaps, warnings };
 }

@@ -256,7 +256,13 @@ describe('getSounding - honesty', () => {
     expect(gaps).toContain('STP');
     // The hemisphere convention is implemented but unvalidated, and the
     // result has to say so rather than let the number pass as settled.
-    expect(gaps).toContain('NOT yet been validated');
+    // The convention is checked against MetPy and against its own mirror; what
+    // remains open is review and precedent, and the gap has to say which is which.
+    expect(gaps).toContain('No meteorologist has reviewed it');
+    expect(gaps).toContain('NimbAI’s own convention');
+    expect(gaps).toContain('nobody has tested the 7.5 m/s Bunkers deviation');
+    // Guards the claim this replaced: it was true on 28 Oct and false from 1 Nov.
+    expect(gaps).not.toContain('NOT yet been validated');
     expect(s.coverage).toContain('model');
     expect(s.attribution.source).toBe('open-meteo');
   });

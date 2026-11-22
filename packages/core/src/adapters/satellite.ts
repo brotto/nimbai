@@ -258,6 +258,21 @@ export function selectGibsGeo(lat: number, lon: number): GibsGeo | undefined {
   return best;
 }
 
+/** HEIGHT that `gibsMapUrl` requests for a bbox at `width` when no explicit height is given. */
+function derivedHeight(bbox: Bbox, width: number): number {
+  const [w, s, e, n] = bbox;
+  return Math.min(2048, Math.max(64, Math.round(Math.round(width) / ((e - w) / (n - s)))));
+}
+
+/**
+ * Degrees per pixel (x, y) of the image `gibsMapUrl` serves for this bbox and width. GIBS
+ * renders pyramid levels at different times, so a frame can only be checked at this resolution.
+ */
+export function gibsDegreesPerPixel(bbox: Bbox, width: number): { x: number; y: number } {
+  const [w, s, e, n] = bbox;
+  return { x: (e - w) / Math.round(width), y: (n - s) / derivedHeight(bbox, width) };
+}
+
 /** GIBS WMS GetMap URL (EPSG:4326, WMS 1.1.1 axis order lon/lat). Omit `time` for "latest". */
 export function gibsMapUrl(opts: {
   layer: string;
@@ -265,11 +280,15 @@ export function gibsMapUrl(opts: {
   width: number;
   time?: string;
   format?: 'image/jpeg' | 'image/png';
+  /** Explicit HEIGHT in pixels (1-2048). Default: derived from the bbox aspect, at least 64. */
+  height?: number;
 }): string {
   const [w, s, e, n] = opts.bbox;
-  const aspect = (e - w) / (n - s);
   const width = Math.round(opts.width);
-  const height = Math.min(2048, Math.max(64, Math.round(width / aspect)));
+  const height =
+    opts.height === undefined
+      ? derivedHeight(opts.bbox, width)
+      : Math.min(2048, Math.max(1, Math.round(opts.height)));
   const params = new URLSearchParams({
     SERVICE: 'WMS',
     REQUEST: 'GetMap',

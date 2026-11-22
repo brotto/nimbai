@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { HttpClient, assertAllowed } from '../http.js';
 import { ImageRefSchema } from '../types.js';
-import { getSatelliteLatest, selectGoesSector, resolveAoi, GOES_SECTORS } from './satellite.js';
+import {
+  getSatelliteLatest,
+  gibsMapUrl,
+  selectGoesSector,
+  resolveAoi,
+  GOES_SECTORS,
+} from './satellite.js';
 
 const noNetwork: typeof fetch = () => {
   throw new Error('satellite adapter must not use the network');
@@ -122,5 +128,18 @@ describe('getSatelliteLatest', () => {
     await expect(getSatelliteLatest(http, {})).rejects.toThrow();
     await expect(getSatelliteLatest(http, { lat: 100, lon: 0 })).rejects.toThrow();
     await expect(getSatelliteLatest(http, { bbox: [10, 10, 5, 20] })).rejects.toThrow();
+  });
+});
+
+describe('gibsMapUrl explicit height', () => {
+  const bbox: [number, number, number, number] = [-60, -30, -50, -20];
+  it('keeps deriving HEIGHT (minimum 64) when no height is given', () => {
+    const q = new URL(gibsMapUrl({ layer: 'L', bbox, width: 16 })).searchParams;
+    expect(q.get('HEIGHT')).toBe('64');
+  });
+  it('honours an explicit small height', () => {
+    const q = new URL(gibsMapUrl({ layer: 'L', bbox, width: 16, height: 16, format: 'image/png' }))
+      .searchParams;
+    expect([q.get('WIDTH'), q.get('HEIGHT'), q.get('FORMAT')]).toEqual(['16', '16', 'image/png']);
   });
 });

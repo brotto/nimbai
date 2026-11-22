@@ -151,6 +151,38 @@ describe('getSevereRisk - outside the US', () => {
     expect(coverage).toContain('SPC Convective Outlook não consultado');
   });
 
+  // 56046 (Tempestade) starts on the 14th and covers the Mato Grosso do Sul point below (outside the in-force 56014); 56038 (Chuvas
+  // Intensas, not convective) covers Manaus. At 13 Oct 11:00 Brasília neither
+  // is in force.
+  it('Brazil: an upcoming convective warning is returned apart from `items`, marked not in force', async () => {
+    const { items, upcoming, coverage, gaps } = await getSevereRisk(client(), {
+      lat: -23.5,
+      lon: -55.5,
+    });
+    expect(items.filter((i) => i.kind === 'official_warning')).toEqual([]);
+    expect(upcoming).toHaveLength(1);
+    expect(upcoming[0]?.kind).toBe('official_warning');
+    expect(upcoming[0]?.label).toBe(
+      '[AINDA NÃO EM VIGOR; início 2026-10-14 00:00 horário de Brasília (UTC-3)] Tempestade',
+    );
+    expect(upcoming[0]?.validFrom).toBe('2026-10-14 00:00');
+    expect(upcoming[0]?.attribution.source).toBe('inmet');
+    expect(coverage).toContain('`upcoming`');
+    expect(gaps.join(' ')).toContain('polígono aproximado');
+  });
+
+  it('Brazil: an upcoming warning that is not convective is not surfaced as severe-weather risk', async () => {
+    const { items, upcoming } = await getSevereRisk(client(), { lat: -3.12, lon: -60.02 });
+    expect(items).toEqual([]);
+    expect(upcoming).toEqual([]);
+  });
+
+  it('Brazil: an in-force warning is in `items`, never in `upcoming`', async () => {
+    const { items, upcoming } = await getSevereRisk(client(), { lat: -25.54, lon: -54.58 });
+    expect(items.map((i) => i.label)).toEqual(['Tempestade']);
+    expect(upcoming).toEqual([]);
+  });
+
   it('Germany: no request, no items, and the gaps say why', async () => {
     const urls: string[] = [];
     const { items, coverage, gaps } = await getSevereRisk(client(urls), { lat: 48.1, lon: 11.5 });

@@ -508,10 +508,14 @@ export async function getSounding(
       'resolution. A difference between them is expected and is not an error in either.',
     'Composite indices (STP, SCP, SHIP) are deliberately absent: their published formulations are ' +
       'calibrated on Northern Hemisphere data and have no validated Southern Hemisphere form.',
-    'The hemisphere convention in `kinematics` — cyclonic mover and helicity sign — is implemented ' +
-      'but has NOT yet been validated against a documented case in either hemisphere, and no ' +
-      'meteorologist has reviewed it. Treat the storm-motion and helicity numbers as provisional, ' +
-      'and read the unflipped `*_raw` values if the convention matters to the answer.',
+    'The hemisphere convention in `kinematics` is checked numerically: the helicity integral ' +
+      'agrees with MetPy 1.7.1 to 0.03% on a documented Northern Hemisphere case, and mirroring ' +
+      'that profile across the equator reproduces it exactly. What is still open is not the ' +
+      'arithmetic. No meteorologist has reviewed it, and two parts of it have no precedent — ' +
+      'flipping the SRH sign is NimbAI’s own convention, since the Southern Hemisphere literature ' +
+      'reports the negative value as it comes, and nobody has tested the 7.5 m/s Bunkers ' +
+      'deviation south of the equator. Read the unflipped `*_raw` values if the convention ' +
+      'matters to the answer; `docs/hemisferio-sul.md` records what was checked and what was not.',
   );
 
   const sbCape = thermodynamics.surfaceParcel?.capeJkg;

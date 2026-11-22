@@ -267,6 +267,17 @@ export function nwsFeatureToAlert(feature: NwsFeature): Alert | null {
   return alert;
 }
 
+/**
+ * Checked against the live feed (62 of 223 messages from /alerts/active carried
+ * an `onset` later than the feed's own timestamp): the NWS endpoint lists
+ * current messages, and some of them describe a hazard that has not begun.
+ * `nwsFeatureToAlert` copies `onset` through unchanged and nothing here splits
+ * them out, so they land in `alerts`. Say so rather than imply otherwise.
+ */
+const NWS_ONSET_NOTE =
+  ' Os alertas do NWS NÃO são separados em `upcoming`: o endpoint também lista mensagens cujo `onset` é futuro, ' +
+  'e elas aparecem em `alerts`. Confira o `onset` de cada alerta do NWS antes de dizer que está em vigor; só o INMET é separado em `upcoming`.';
+
 const SEVERITY_RANK: Record<string, number> = {
   extreme: 0,
   severe: 1,
@@ -286,7 +297,16 @@ function nwsSeverityParam(severity: string[] | undefined): string | undefined {
 }
 
 type SourceOutcome =
-  | { state: 'ok'; alerts: Alert[]; note?: string }
+  | {
+      state: 'ok';
+      alerts: Alert[];
+      /**
+       * Warnings matched to the same place whose validity window has not begun.
+       * Only INMET fills it. NWS does not split future-onset messages out (see NWS_ONSET_NOTE).
+       */
+      upcoming?: Alert[];
+      note?: string;
+    }
   | { state: 'outside' }
   | { state: 'failed'; reason: string };
 
@@ -450,19 +470,20 @@ async function queryInmet(
     return { state: 'failed', reason: err instanceof Error ? err.message : String(err) };
   }
   const alerts: Alert[] = [];
-  const seen = new Set<string>();
+  const upcomingAlerts: Alert[] = [];
+  const seenActive = new Set<string>();
+  const seenUpcoming = new Set<string>();
   const now = Date.now();
-  let upcomingCount = 0;
   for (const aviso of [...(body.hoje ?? []), ...(body.futuro ?? [])]) {
     if (aviso.encerrado === true) continue;
     // `encerrado` alone is not vigência: the feed carries tomorrow's warnings
     // in `futuro`, and counting those as in force is a false present-tense
-    // warning. Expired ones are dropped; upcoming ones are only counted.
+    // warning. Expired ones are dropped; upcoming ones go to a separate list
+    // that is never merged into the in-force one.
     const { inForce, upcoming } = inmetInForce(aviso, now);
-    if (!inForce) {
-      if (upcoming) upcomingCount++;
-      continue;
-    }
+    if (!inForce && !upcoming) continue;
+    // The feed is Brazil-wide: the geometry test must run before anything is
+    // kept or counted, for upcoming warnings exactly as for active ones.
     const geom = parsePolygon(aviso.poligono);
     if (geom === null) continue; // no geometry: cannot say the place is inside
     const hit =
@@ -471,17 +492,15 @@ async function queryInmet(
         : input.bbox !== undefined && geometryIntersectsBbox(geom, input.bbox);
     if (!hit) continue;
     const alert = inmetToAlert(aviso);
-    if (alert === null || seen.has(alert.id)) continue;
+    if (alert === null) continue;
+    const [seen, target] = inForce ? [seenActive, alerts] : [seenUpcoming, upcomingAlerts];
+    if (seen.has(alert.id)) continue;
     seen.add(alert.id);
-    alerts.push(alert);
+    target.push(alert);
   }
-  return upcomingCount > 0
-    ? {
-        state: 'ok',
-        alerts,
-        note: `${upcomingCount} aviso(s) do INMET para este local começam no futuro e NÃO estão incluídos como ativos`,
-      }
-    : { state: 'ok', alerts };
+  // An id already in force must not also be listed as upcoming.
+  const upcomingOnly = upcomingAlerts.filter((a) => !seenActive.has(a.id));
+  return { state: 'ok', alerts, upcoming: upcomingOnly };
 }
 
 // ---------------------------------------------------------------------------
@@ -530,7 +549,22 @@ function validate(input: { lat?: number; lon?: number; bbox?: Bbox }): void {
 export async function getAlerts(
   http: HttpClient,
   input: { lat?: number; lon?: number; bbox?: Bbox; severity?: string[] },
-): Promise<{ alerts: Alert[]; coverage: string; consulted: ConsultedSource[] }> {
+): Promise<{
+  alerts: Alert[];
+  /**
+   * Warnings for the same place whose validity window has NOT begun. They are
+   * not in force: never count, render or sort them with `alerts`. Sorted by
+   * start time, soonest first.
+   *
+   * Only INMET warnings are split out this way. The NWS active-alerts feed is
+   * NOT split: it carries messages whose `onset` is still in the future and
+   * they stay in `alerts`, so check an NWS alert's `onset` before calling it in
+   * force. An empty list here is therefore never "nothing is coming".
+   */
+  upcoming: Alert[];
+  coverage: string;
+  consulted: ConsultedSource[];
+}> {
   validate(input);
   const point =
     input.lat !== undefined && input.lon !== undefined
@@ -566,11 +600,12 @@ export async function getAlerts(
     succeeded++;
     parts.push(
       point !== undefined
-        ? 'NWS (EUA) consultado: alertas ativos por polígono/zona oficial para o ponto.'
+        ? `NWS (EUA) consultado: alertas por polígono/zona oficial para o ponto.${NWS_ONSET_NOTE}`
         : 'NWS (EUA) consultado para o bbox: só alertas com polígono foram casados' +
             (nws.note !== undefined
               ? `; ${nws.note} alerta(s) definidos apenas por zona (sem polígono, p.ex. vigilâncias/watches e avisos marítimos) NÃO puderam ser casados com o bbox e foram omitidos.`
-              : '.'),
+              : '.') +
+            NWS_ONSET_NOTE,
     );
   } else if (nws.state === 'failed') {
     queried++;
@@ -586,10 +621,11 @@ export async function getAlerts(
     queried++;
     succeeded++;
     parts.push(
-      'INMET (Brasil) consultado: apenas avisos EM VIGOR agora (os de início futuro são contados, não listados). O INMET define a área oficial por municípios; ' +
-        `o casamento com ${scope} usa o polígono publicado, que é um envelope aproximado, e este servidor não resolve em qual município o ponto está. ` +
-        'Um aviso listado pode não valer para o local exato; um local fora do polígono não é garantia de ausência de aviso.' +
-        (inmet.note !== undefined ? ` ${inmet.note}.` : ''),
+      'INMET (Brasil) consultado: avisos EM VIGOR agora em `alerts`; os que começam mais tarde vêm separados em `upcoming` e AINDA NÃO estão em vigor. O INMET define a área oficial por municípios; ' +
+        `o casamento com ${scope}, em ambas as listas, usa o mesmo polígono publicado, que é um envelope aproximado, e este servidor não resolve em qual município o ponto está. ` +
+        'Um aviso listado pode não valer para o local exato; um local fora do polígono não é garantia de ausência de aviso. ' +
+        'Os campos `onset`/`expires` do INMET saem como o feed publica: horário de BRASÍLIA (UTC-3), sem marcador de fuso. ' +
+        'Não os leia como UTC — `upcoming` é ordenado pelo instante já convertido, mas o texto do campo não é.',
     );
   } else if (inmet.state === 'failed') {
     queried++;
@@ -622,6 +658,18 @@ export async function getAlerts(
   }
   parts.push('Ausência de alertas neste resultado não é ausência de risco.');
 
+  let upcoming = inmet.state === 'ok' ? (inmet.upcoming ?? []) : [];
+  if (wantedSeverity !== undefined && wantedSeverity.length > 0) {
+    upcoming = upcoming.filter(
+      (a) => a.severity !== undefined && wantedSeverity.includes(a.severity.toLowerCase()),
+    );
+  }
+  upcoming.sort(
+    (a, b) =>
+      (parseInmetInstant(a.onset) ?? Number.MAX_SAFE_INTEGER) -
+      (parseInmetInstant(b.onset) ?? Number.MAX_SAFE_INTEGER),
+  );
+
   if (queried > 0 && succeeded === 0) {
     throw new SourceError(
       `Every official alert source consulted failed (${failures.join(' | ')}).`,
@@ -646,7 +694,7 @@ export async function getAlerts(
       reason: 'Feed has no geometry; point match impossible.',
     },
   ];
-  return { alerts, coverage: parts.join(' '), consulted };
+  return { alerts, upcoming, coverage: parts.join(' '), consulted };
 }
 
 function toConsulted(source: ConsultedSource['source'], outcome: SourceOutcome): ConsultedSource {

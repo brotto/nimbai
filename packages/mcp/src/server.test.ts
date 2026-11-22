@@ -1,5 +1,5 @@
 import { InMemoryTransport, type JSONRPCMessage } from '@modelcontextprotocol/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { alertSummary, createServer, soundingSummary, type CreateServerOptions } from './server.js';
 
@@ -147,6 +147,246 @@ describe('alertSummary — an empty list must never read as an all-clear', () =>
     const text = alertSummary(2, [{ source: 'nws', state: 'ok' }]);
     expect(text).toContain('2 active official alert(s)');
     expect(text).toContain('verbatim');
+  });
+});
+
+describe('alertSummary — warnings that have not begun are announced, never counted as active', () => {
+  const inmetOk = [{ source: 'inmet' as const, state: 'ok' as const }];
+
+  it('does not say "no alert" without mentioning the incoming ones', () => {
+    const text = alertSummary(0, inmetOk, 3);
+    expect(text).toContain('3 official warning(s)');
+    expect(text).toContain('NOT in force yet');
+    expect(text).toContain('`upcoming`');
+    expect(text).toContain('Absence of an alert is not absence of risk');
+  });
+
+  it('keeps the active count apart from the upcoming one', () => {
+    const text = alertSummary(1, inmetOk, 2);
+    expect(text).toContain('1 active official alert(s)');
+    expect(text).toContain('2 official warning(s)');
+    expect(text).not.toContain('3 active');
+  });
+
+  it('is unchanged when nothing is coming', () => {
+    expect(alertSummary(0, inmetOk)).toBe(
+      'No active official alert from inmet. Absence of an alert is not absence of risk.',
+    );
+    expect(alertSummary(0, inmetOk, 0)).not.toContain('LATER');
+  });
+
+  it('still refuses an all-clear when a source failed and warnings are incoming', () => {
+    const text = alertSummary(0, [{ source: 'nws', state: 'failed', reason: 'x' }], 1);
+    expect(text).toContain('NOT an all-clear');
+    expect(text).toContain('LATER');
+  });
+});
+
+describe('nimbai_get_alerts and nimbai_get_summary with an upcoming INMET warning', () => {
+  const polygon = JSON.stringify({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-55, -26],
+        [-54, -26],
+        [-54, -25],
+        [-55, -25],
+        [-55, -26],
+      ],
+    ],
+  });
+  const feed = {
+    hoje: [],
+    futuro: [
+      {
+        id: 77,
+        descricao: 'Tempestade',
+        severidade: 'Perigo',
+        inicio: '2026-10-14 06:00',
+        fim: '2026-10-14 23:59',
+        encerrado: false,
+        poligono: polygon,
+      },
+    ],
+  };
+  const fakeFetch: typeof globalThis.fetch = async (input) => {
+    const u = String(input);
+    if (u.includes('apiprevmet3')) {
+      return new Response(JSON.stringify(feed), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return new Response('nope', { status: 500 });
+  };
+  type R = {
+    isError?: boolean;
+    structuredContent?: {
+      alerts?: { id: string }[];
+      upcoming?: { id: string }[];
+      alerts_upcoming?: { id: string }[];
+    };
+    content?: { text?: string }[];
+  };
+
+  it('nimbai_get_alerts: headline says warnings are coming and `upcoming` holds them', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const result = (await call('tools/call', {
+        name: 'nimbai_get_alerts',
+        arguments: { lat: -25.54, lon: -54.58 },
+      })) as R;
+      expect(result.isError).toBeFalsy();
+      const text = result.content?.map((c) => c.text ?? '').join('\n') ?? '';
+      expect(text).toContain('start LATER');
+      expect(text).toContain('NOT in force yet');
+      expect(text).not.toMatch(/\d active official alert/);
+      expect(result.structuredContent?.alerts).toEqual([]);
+      expect(result.structuredContent?.upcoming?.map((a) => a.id)).toEqual(['inmet:77']);
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+
+  it('nimbai_get_summary: alerts stay empty, alerts_upcoming carries the warning', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const result = (await call('tools/call', {
+        name: 'nimbai_get_summary',
+        arguments: { lat: -25.54, lon: -54.58 },
+      })) as R;
+      expect(result.isError).toBeFalsy();
+      const text = result.content?.map((c) => c.text ?? '').join('\n') ?? '';
+      expect(text).toContain('start LATER');
+      expect(result.structuredContent?.alerts).toEqual([]);
+      expect(result.structuredContent?.alerts_upcoming?.map((a) => a.id)).toEqual(['inmet:77']);
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('upcoming warnings: summaries when active and upcoming coexist, and severe risk', () => {
+  const polygon = JSON.stringify({
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-55, -26],
+        [-54, -26],
+        [-54, -25],
+        [-55, -25],
+        [-55, -26],
+      ],
+    ],
+  });
+  const aviso = (id: number, inicio: string, fim: string) => ({
+    id,
+    descricao: 'Tempestade',
+    severidade: 'Perigo',
+    inicio,
+    fim,
+    encerrado: false,
+    poligono: polygon,
+  });
+  const feed = {
+    hoje: [aviso(10, '2026-10-13 00:00', '2026-10-13 23:59')],
+    futuro: [aviso(11, '2026-10-14 06:00', '2026-10-14 23:59')],
+  };
+  const fakeFetch: typeof globalThis.fetch = async (input) =>
+    String(input).includes('apiprevmet3')
+      ? new Response(JSON.stringify(feed), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      : new Response('nope', { status: 500 });
+  type R = {
+    isError?: boolean;
+    structuredContent?: { items?: { label: string }[]; upcoming?: { label: string }[] };
+    content?: { text?: string }[];
+  };
+  const textOf = (r: R): string => r.content?.map((c) => c.text ?? '').join('\n') ?? '';
+
+  it('nimbai_get_alerts: leads with the active count and still announces the later one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const r = (await call('tools/call', {
+        name: 'nimbai_get_alerts',
+        arguments: { lat: -25.54, lon: -54.58 },
+      })) as R;
+      const text = textOf(r);
+      expect(text).toContain('1 active official alert(s)');
+      expect(text).toContain('1 official warning(s)');
+      expect(text).toContain('start LATER');
+      expect(text).not.toContain('2 active');
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+
+  it('nimbai_get_severe_risk: counts only the one in force and says the other starts LATER', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-13T15:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const r = (await call('tools/call', {
+        name: 'nimbai_get_severe_risk',
+        arguments: { lat: -25.54, lon: -54.58 },
+      })) as R;
+      expect(r.isError).toBeFalsy();
+      const text = textOf(r);
+      expect(text).toContain('1 official warning(s) in force');
+      expect(text).toContain('1 more official warning(s)');
+      expect(text).toContain('start LATER');
+      expect(text).toContain('NOT in force yet');
+      expect(text).not.toContain('2 official warning(s) in force');
+      expect(r.structuredContent?.items).toHaveLength(1);
+      expect(r.structuredContent?.upcoming).toHaveLength(1);
+      expect(r.structuredContent?.upcoming?.[0]?.label).toContain('[AINDA NÃO EM VIGOR');
+      expect(r.structuredContent?.items?.[0]?.label).not.toContain('AINDA NÃO');
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+
+  it('nimbai_get_severe_risk: with nothing in force, still announces the later one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-12T15:00:00Z'));
+    const { call, close } = await session({ fetch: fakeFetch });
+    try {
+      const r = (await call('tools/call', {
+        name: 'nimbai_get_severe_risk',
+        arguments: { lat: -25.54, lon: -54.58 },
+      })) as R;
+      const text = textOf(r);
+      expect(text).toContain('No official warning in force');
+      expect(text).toContain('start LATER');
+    } finally {
+      await close();
+      vi.useRealTimers();
+    }
+  });
+
+  it('describes `upcoming` in the nimbai_get_severe_risk tool description', async () => {
+    const { call, close } = await session();
+    try {
+      const listed = (await call('tools/list')) as {
+        tools: { name: string; description?: string }[];
+      };
+      const tool = listed.tools.find((t) => t.name === 'nimbai_get_severe_risk');
+      expect(tool?.description).toContain('`upcoming`');
+    } finally {
+      await close();
+    }
   });
 });
 
