@@ -1,5 +1,7 @@
 # Parâmetros de tempo severo no Hemisfério Sul
 
+> English version: [`southern-hemisphere.md`](southern-hemisphere.md).
+
 Quase toda a literatura e todo o software de tempo severo foram escritos para o
 Hemisfério Norte. Aplicar as convenções do HN a uma tempestade no sul do Brasil
 não produz erro nenhum na tela — produz um número plausível apontando para a
