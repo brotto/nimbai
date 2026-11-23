@@ -1,7 +1,9 @@
 # Referência das tools NimbAI
 
 Todas as tools são somente-leitura e devolvem `structuredContent` mais um espelho em texto. Toda
-resposta traz `attribution` (uma lista) — **mostre o crédito ao usuário**. Respostas sobre alerta,
+resposta de dados bem-sucedida traz `attribution` (uma lista, que pode vir vazia quando não há dado
+de fonte para creditar — nesse caso leia `consulted`/`coverage`; respostas de erro não a trazem) —
+**mostre o crédito ao usuário**. Respostas sobre alerta,
 raio ou tempo severo trazem também `safety_notice`.
 
 Um ponto é `lat` + `lon`. Quase toda tool aceita `bbox` `[oeste, sul, leste, norte]` como
@@ -10,7 +12,7 @@ alternativa; quando só o `bbox` é dado, o centro dele é usado como ponto.
 | Tool | Entrada mínima | Campos-chave da saída |
 |---|---|---|
 | `nimbai_search_location` | `query`, ou `lat`+`lon` | `candidates[] {id, name, admin, country, countryCode, lat, lon, timezone, population}` |
-| `nimbai_get_summary` | ponto ou `bbox` (+ `detail`) | `current`, `forecast`, `alerts[]`, `alerts_upcoming[]`, `alerts_coverage` |
+| `nimbai_get_summary` | ponto ou `bbox` (+ `detail`) | `observed`, `observed_coverage`, `modelled`, `forecast`, `alerts[]`, `alerts_upcoming[]`, `alerts_coverage`, `alerts_consulted`, `unavailable` |
 | `nimbai_get_forecast` | ponto ou `bbox` (+ `hours` ou `days`) | `forecast {model, run, times[], variables{nome:{unit, values[]}}}` |
 | `nimbai_get_alerts` | ponto ou `bbox` (+ `severity[]`) | `alerts[] {event, severity, urgency, certainty, tags[], areaDescription, onset, expires, text, url}`, `upcoming[]` (mesmos campos), `coverage`, `consulted[]` |
 | `nimbai_get_satellite_latest` | ponto ou `bbox` (+ `product`) | `image`, `satellite`, `coverage` |
@@ -69,7 +71,7 @@ no lugar do outro é o erro mais fácil de cometer com esta tool.
 `kinematics.cyclonicMover` diz qual dos dois movedores de Bunkers gira ciclonicamente: **`right` no
 Hemisfério Norte, `left` no Sul**. A SRH em `srh0to1kmM2S2`/`srh0to3kmM2S2` já vem com o sinal
 corrigido, de modo que **positivo = favorável a supercélula ciclônica nos dois hemisférios**; os
-valores crus da integral estão em `*_raw`. Leia `kinematics.signConvention` antes de citar um
+valores crus da integral estão em `srh0to1kmRawM2S2`/`srh0to3kmRawM2S2`. Leia `kinematics.signConvention` antes de citar um
 número. Aplicar a convenção do Norte ao Brasil aponta todo parâmetro de tornado para a tempestade
 errada.
 

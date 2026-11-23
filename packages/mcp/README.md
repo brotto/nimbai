@@ -16,7 +16,7 @@ results still get a usable answer.
 | Tool | Minimum input | Returns |
 |---|---|---|
 | `nimbai_search_location` | `query`, or `lat`+`lon` | `candidates[]` with id, name, admin, country, lat/lon, timezone |
-| `nimbai_get_summary` | `lat`+`lon` or `bbox` | `current`, `forecast`, `alerts[]`, `alerts_coverage` |
+| `nimbai_get_summary` | `lat`+`lon` or `bbox` | `observed`, `modelled`, `forecast`, `alerts[]`, `alerts_coverage` |
 | `nimbai_get_forecast` | `lat`+`lon` or `bbox` | `forecast` series with model, times and variables |
 | `nimbai_get_alerts` | `lat`+`lon` or `bbox` | `alerts[]` with verbatim official text, `coverage` |
 | `nimbai_get_satellite_latest` | `lat`+`lon` or `bbox` | `image`, `satellite`, `coverage` |
@@ -33,7 +33,8 @@ to do instead, so it does not retry the same failing call.
 ## What this phase does not do
 
 Honesty about gaps is a product requirement, not a disclaimer. Every tool that can be short on
-coverage returns `coverage` and `gaps[]` saying so, and this phase in particular:
+coverage returns `coverage` (and, where the table above says so, `gaps[]`),
+and this phase in particular:
 
 - **Lightning is gridded satellite flash density, not strike detection.** No counts, no
   "nearest strike", no trend — those need our own ingestion and arrive in a later phase. Never
@@ -53,13 +54,27 @@ coverage returns `coverage` and `gaps[]` saying so, and this phase in particular
 
 ## Install
 
+**This package is not published to npm yet**, so install it from a checkout. Requires Node >= 22
+and pnpm 10.
+
+```bash
+git clone https://github.com/brotto/nimbai.git
+cd nimbai
+pnpm install
+pnpm build
+```
+
+The build produces `packages/mcp/dist/bin/stdio.js`. Use its **absolute path** below.
+
 ### Claude Code
 
 ```bash
-claude mcp add nimbai -- npx -y @nimbai/mcp
+claude mcp add nimbai -- node /path/to/nimbai/packages/mcp/dist/bin/stdio.js
 ```
 
-### Claude Desktop, Codex, Cursor, Hermes, OpenClaw, Kimi, Gemini CLI, VS Code
+### Claude Desktop, Cursor, Gemini CLI, VS Code (JSON)
+
+Codex uses TOML and Hermes YAML — see the root README.
 
 Add to the harness's MCP config:
 
@@ -67,8 +82,8 @@ Add to the harness's MCP config:
 {
   "mcpServers": {
     "nimbai": {
-      "command": "npx",
-      "args": ["-y", "@nimbai/mcp"],
+      "command": "node",
+      "args": ["/path/to/nimbai/packages/mcp/dist/bin/stdio.js"],
       "env": { "NWS_USER_AGENT": "(your-app.example, you@example.com)" }
     }
   }
@@ -76,24 +91,14 @@ Add to the harness's MCP config:
 ```
 
 `NWS_USER_AGENT` is optional but recommended: the US National Weather Service API asks callers to
-identify themselves with a contact, and sets lower limits for anonymous traffic. It is a contact
-string, not a credential.
-
-### From a checkout
-
-```bash
-pnpm install && pnpm --filter @nimbai/mcp build && node packages/mcp/dist/bin/stdio.js
-```
+identify themselves with a contact, and rejects requests that carry no identifying User-Agent. It is a
+contact string, not a credential.
 
 ## Skill
 
 `skills/nimbai/SKILL.md` teaches a model when to call which tool, how to read an image's
-`valid_time`/`bbox`/legend, and the safety rules. Install it in any agent that supports the
-open skills format:
-
-```bash
-npx skills add brotto/nimbai
-```
+`validTime`/`bbox`/`legend`, and the safety rules. Point your agent at that directory, or copy it in,
+according to how it loads skills.
 
 ## Licence
 
